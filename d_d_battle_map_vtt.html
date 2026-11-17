@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Battle Map VTT — กระดานแผนที่ & หมุดตัวละคร</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        fantasy: ['Cinzel', 'serif'],
+                    },
+                    colors: {
+                        vtt: {
+                            bg: '#0b0e14',
+                            panel: '#131823',
+                            card: '#1a2232',
+                            border: '#28334a',
+                            gold: '#f59e0b',
+                            goldHover: '#d97706'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0e14;
+            color: #e2e8f0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #131823;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        #canvasContainer {
+            background-image: radial-gradient(#1e293b 1px, transparent 1px);
+            background-size: 24px 24px;
+            touch-action: none;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .token-avatar-ring {
+            box-shadow: 0 0 0 2px #0b0e14, 0 0 0 4px #f59e0b;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="h-14 bg-vtt-panel border-b border-vtt-border px-3 flex items-center justify-between gap-2 shrink-0 z-30 shadow-lg">
+        <!-- Brand & Map Upload -->
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center shadow-md shadow-amber-900/40 shrink-0">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+            </div>
+            <div class="hidden md:block">
+                <h1 class="font-fantasy font-bold text-amber-400 text-base leading-tight tracking-wide">D&D BATTLE MAP</h1>
+                <p class="text-[11px] text-slate-400 leading-none">กระดานแผนที่ & หมุดตัวละคร</p>
+            </div>
+
+            <div class="h-6 w-px bg-vtt-border mx-1 hidden sm:block"></div>
+
+            <!-- Upload Map Button -->
+            <label class="cursor-pointer bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <span>อัปโหลดแผนที่</span>
+                <input type="file" id="mapUploadInput" accept="image/*" class="hidden">
+            </label>
+
+            <!-- Clear / Remove Map Button -->
+            <button onclick="removeCurrentMap()" class="bg-rose-950/70 hover:bg-rose-900 border border-rose-800/70 text-rose-300 font-semibold text-xs px-2.5 py-2 rounded-xl flex items-center gap-1.5 transition" title="ลบรูปแผนที่ออก (เหลือเฉพาะกระดานเปล่าและหมุด)">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span class="hidden sm:inline">ลบแมพ</span>
+            </button>
+
+            <!-- Import Character JSON Button -->
+            <label class="cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm" title="นำเข้าตัวละครจากไฟล์ .json (dnd-companion)">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                <span>นำเข้าตัวละคร</span>
+                <input type="file" id="charImportInput" accept=".json" class="hidden">
+            </label>
+
+            <button onclick="loadSampleDungeonMap()" class="bg-vtt-card hover:bg-slate-800 border border-vtt-border text-slate-200 text-xs px-2.5 py-2 rounded-xl transition hidden lg:flex items-center gap-1.5" title="สร้างแผนที่ตัวอย่าง">
+                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                <span>ฉากตัวอย่าง</span>
+            </button>
+
+            <!-- Built-in Preset Scene Switcher Dropdown -->
+            <div class="flex items-center bg-vtt-card border border-amber-500/50 rounded-xl px-2 py-1 gap-1.5 shadow-sm" title="เลือกสลับฉากที่สร้างไว้แล้วได้ทันที">
+                <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <select id="presetSceneSelect" onchange="handlePresetSceneSelect(this.value)" class="bg-transparent text-xs font-semibold text-amber-300 focus:outline-none cursor-pointer pr-1">
+                    <option value="" class="bg-slate-900 text-slate-300">-- เลือกฉากสำเร็จรูป --</option>
+                    <option value="town" class="bg-slate-900 text-white">🏰 1. เมืองด่านหน้า (Town + NPC)</option>
+                    <option value="guild" class="bg-slate-900 text-white">📜 2. กิลด์นักผจญภัย 1 ชั้น (Guild)</option>
+                    <option value="shop" class="bg-slate-900 text-white">⚔️ 3. ร้านอาวุธและชุดเกราะ 1 ชั้น</option>
+                    <option value="dungeon" class="bg-slate-900 text-slate-300">🏛️ 4. วิหารโบราณ (ฉากเริ่มต้น)</option>
+                </select>
+                <label class="flex items-center gap-1 text-[10px] text-slate-300 border-l border-vtt-border pl-1.5 cursor-pointer select-none hidden xl:flex" title="เก็บหมุดฝ่ายผู้เล่น (PC) ย้ายตามไปฉากใหม่ด้วย">
+                    <input type="checkbox" id="keepPlayersOnSwitchCheck" checked class="w-3 h-3 accent-amber-500">
+                    <span>พกผู้เล่นไปด้วย</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Center Tools -->
+        <div class="flex items-center bg-vtt-bg p-1 rounded-xl border border-vtt-border gap-1">
+            <button id="toolSelectBtn" onclick="setTool('select')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 shadow transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5" /></svg>
+                <span class="hidden sm:inline">เลือก/ย้ายหมุด</span>
+            </button>
+            <button id="toolPanBtn" onclick="setTool('pan')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" /></svg>
+                <span class="hidden sm:inline">เลื่อนฉาก</span>
+            </button>
+            <button id="toolRulerBtn" onclick="setTool('ruler')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                <span class="hidden sm:inline">วัดระยะ</span>
+            </button>
+            <button id="toolFogBtn" onclick="setTool('fog')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+                <span class="hidden sm:inline">บังแมพ/เงา</span>
+            </button>
+            <button id="toolAoeBtn" onclick="setTool('aoe')" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+                <span class="hidden sm:inline">พื้นที่สกิล</span>
+            </button>
+        </div>
+
+        <!-- Right: Save/Load Scene -->
+        <div class="flex items-center gap-1.5">
+            <button onclick="saveSceneJSON()" class="bg-vtt-card hover:bg-slate-800 border border-vtt-border text-slate-200 text-xs px-2.5 py-2 rounded-xl flex items-center gap-1.5 transition" title="บันทึกฉากและหมุดเป็นไฟล์ JSON">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
+                <span class="hidden md:inline">บันทึกฉาก</span>
+            </button>
+            <label class="cursor-pointer bg-vtt-card hover:bg-slate-800 border border-vtt-border text-slate-200 text-xs px-2.5 py-2 rounded-xl flex items-center gap-1.5 transition" title="โหลดไฟล์ฉาก JSON">
+                <svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" /></svg>
+                <span class="hidden md:inline">โหลดฉาก</span>
+                <input type="file" id="sceneLoadInput" accept=".json" class="hidden">
+            </label>
+            <button id="toggleLeftBtn" onclick="toggleLeftSidebar()" class="bg-vtt-card hover:bg-slate-800 border border-vtt-border px-2.5 py-2 rounded-xl text-xs text-amber-400 font-semibold flex items-center gap-1" title="พับ/เปิดแผงควบคุมซ้าย">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                <span id="toggleLeftLabel" class="hidden sm:inline">พับแถบซ้าย</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Left Sidebar: Floating Overlay so center map NEVER shrinks -->
+        <aside id="leftSidebar" class="w-80 bg-vtt-panel/95 backdrop-blur-md border-r border-vtt-border flex flex-col shrink-0 z-20 transition-transform duration-200 absolute inset-y-0 left-0 shadow-2xl">
+            <!-- Tabs & Collapse Header -->
+            <div class="flex items-center border-b border-vtt-border bg-vtt-bg/80 p-1 gap-1">
+                <button onclick="switchLeftTab('tokens')" id="tabBtnTokens" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-vtt-card text-amber-400 shadow">สร้างหมุด</button>
+                <button onclick="switchLeftTab('grid')" id="tabBtnGrid" class="flex-1 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200">ตาราง & เงา</button>
+                <button onclick="toggleLeftSidebar()" class="px-2.5 py-2 text-xs text-slate-400 hover:text-white rounded-lg hover:bg-vtt-card" title="พับเก็บแถบซ้าย">◀</button>
+            </div>
+
+            <!-- Tab 1: Token Creator & Roster -->
+            <div id="leftTabTokens" class="flex-1 overflow-y-auto p-3.5 space-y-4">
+                <div class="bg-vtt-card/90 border border-vtt-border rounded-2xl p-3.5 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                            เพิ่มหมุดใหม่ลงแผนที่
+                        </h2>
+                        <label class="cursor-pointer bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 text-[11px] font-semibold px-2 py-1 rounded-lg transition shrink-0">
+                            + นำเข้า .JSON
+                            <input type="file" id="charImportSidebarInput" accept=".json" class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- Name & Role -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-2">
+                            <label class="block text-[11px] text-slate-400 mb-1">ชื่อตัวละคร / มอนสเตอร์</label>
+                            <input type="text" id="newTokenName" placeholder="เช่น อารากอร์น, ก็อบลิน" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">ฝ่าย</label>
+                            <select id="newTokenFaction" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                                <option value="player">ผู้เล่น (PC)</option>
+                                <option value="enemy">ศัตรู</option>
+                                <option value="npc">NPC</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Class, Level, AC -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">คลาส / เผ่า</label>
+                            <input type="text" id="newTokenClass" placeholder="Fighter" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">เลเวล (Lv)</label>
+                            <input type="number" id="newTokenLevel" value="1" min="1" max="20" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2 py-1.5 text-xs text-center font-bold text-amber-300 focus:outline-none focus:border-amber-500">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">เกราะ (AC)</label>
+                            <input type="number" id="newTokenAc" value="14" min="1" max="40" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2 py-1.5 text-xs text-center font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                        </div>
+                    </div>
+
+                    <!-- HP & MP -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-vtt-bg/80 p-2 rounded-xl border border-rose-950/60">
+                            <label class="block text-[11px] font-semibold text-rose-400 mb-1">พลังชีวิต (HP)</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="newTokenHp" value="30" min="0" class="w-full bg-vtt-panel border border-vtt-border rounded-lg px-2 py-1 text-xs text-center font-bold text-white">
+                                <span class="text-slate-500 text-xs">/</span>
+                                <input type="number" id="newTokenMaxHp" value="30" min="1" class="w-full bg-vtt-panel border border-vtt-border rounded-lg px-2 py-1 text-xs text-center text-slate-300">
+                            </div>
+                        </div>
+                        <div class="bg-vtt-bg/80 p-2 rounded-xl border border-sky-950/60">
+                            <label class="block text-[11px] font-semibold text-sky-400 mb-1">มานา / เวท (MP)</label>
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="newTokenMp" value="20" min="0" class="w-full bg-vtt-panel border border-vtt-border rounded-lg px-2 py-1 text-xs text-center font-bold text-white">
+                                <span class="text-slate-500 text-xs">/</span>
+                                <input type="number" id="newTokenMaxMp" value="20" min="0" class="w-full bg-vtt-panel border border-vtt-border rounded-lg px-2 py-1 text-xs text-center text-slate-300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Token Size & Color -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">ขนาดหมุด (ช่อง)</label>
+                            <select id="newTokenSize" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
+                                <option value="1">1x1 (เล็ก/กลาง)</option>
+                                <option value="2">2x2 (ใหญ่ - Large)</option>
+                                <option value="3">3x3 (มหึมา - Huge)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">สีขอบหมุด</label>
+                            <div class="flex items-center gap-1.5 pt-1" id="colorSwatches">
+                                <button type="button" onclick="selectNewTokenColor('#10b981')" data-color="#10b981" class="w-5 h-5 rounded-full bg-emerald-500 ring-2 ring-white"></button>
+                                <button type="button" onclick="selectNewTokenColor('#ef4444')" data-color="#ef4444" class="w-5 h-5 rounded-full bg-red-500"></button>
+                                <button type="button" onclick="selectNewTokenColor('#3b82f6')" data-color="#3b82f6" class="w-5 h-5 rounded-full bg-blue-500"></button>
+                                <button type="button" onclick="selectNewTokenColor('#f59e0b')" data-color="#f59e0b" class="w-5 h-5 rounded-full bg-amber-500"></button>
+                                <button type="button" onclick="selectNewTokenColor('#a855f7')" data-color="#a855f7" class="w-5 h-5 rounded-full bg-purple-500"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Avatar Image Upload or Emoji -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">ไอคอนสัญลักษณ์</label>
+                            <select id="newTokenEmoji" class="w-full bg-vtt-bg border border-vtt-border rounded-xl px-2 py-1.5 text-xs text-white">
+                                <option value="">ใช้อักษรย่อชื่อ</option>
+                                <option value="⚔️">⚔️ นักรบ</option>
+                                <option value="🧙">🧙 จอมเวท</option>
+                                <option value="🏹">🏹 นักธนู</option>
+                                <option value="🛡️">🛡️ พาลาดิน</option>
+                                <option value="🗡️">🗡️ โจร</option>
+                                <option value="✨">✨ นักบวช</option>
+                                <option value="👹">👹 ปีศาจ/ออร์ค</option>
+                                <option value="🐉">🐉 มังกร</option>
+                                <option value="💀">💀 โครงกระดูก</option>
+                                <option value="🐺">🐺 สัตว์อสูร</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">หรือรูปโปรไฟล์หมุด</label>
+                            <label class="cursor-pointer w-full bg-vtt-bg hover:bg-slate-900 border border-dashed border-vtt-border rounded-xl px-2 py-1.5 text-[11px] text-slate-300 flex items-center justify-center gap-1 truncate">
+                                <span id="avatarFileLabel">เลือกรูป...</span>
+                                <input type="file" id="newTokenAvatarInput" accept="image/*" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <button onclick="createNewToken()" class="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                        <span>วางหมุดลงบนแผนที่</span>
+                    </button>
+                </div>
+
+                <!-- Token Roster List -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between px-1">
+                        <h3 class="text-xs font-semibold text-slate-300">หมุดทั้งหมดบนกระดาน (<span id="rosterCount">0</span>)</h3>
+                        <button onclick="clearAllTokens()" class="text-[11px] text-rose-400 hover:text-rose-300">ล้างทั้งหมด</button>
+                    </div>
+                    <!-- Faction Visibility Filter (Anti-Spoiler) -->
+                    <div class="grid grid-cols-3 gap-1.5 bg-vtt-bg/90 p-1.5 rounded-xl border border-vtt-border">
+                        <label class="cursor-pointer flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-lg bg-vtt-card/80 hover:bg-slate-800 text-[11px] font-medium text-emerald-300 select-none">
+                            <input type="checkbox" id="filterFactionPlayer" checked onchange="toggleRosterFaction('player', this.checked)" class="w-3.5 h-3.5 accent-emerald-500 rounded">
+                            <span>ผู้เล่น</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-lg bg-vtt-card/80 hover:bg-slate-800 text-[11px] font-medium text-rose-300 select-none">
+                            <input type="checkbox" id="filterFactionEnemy" onchange="toggleRosterFaction('enemy', this.checked)" class="w-3.5 h-3.5 accent-rose-500 rounded">
+                            <span>ศัตรู</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-lg bg-vtt-card/80 hover:bg-slate-800 text-[11px] font-medium text-amber-300 select-none">
+                            <input type="checkbox" id="filterFactionNpc" onchange="toggleRosterFaction('npc', this.checked)" class="w-3.5 h-3.5 accent-amber-500 rounded">
+                            <span>NPC</span>
+                        </label>
+                    </div>
+                    <div id="tokenRosterList" class="space-y-1.5"></div>
+                </div>
+            </div>
+
+            <!-- Tab 2: Grid & Fog Settings -->
+            <div id="leftTabGrid" class="hidden flex-1 overflow-y-auto p-3.5 space-y-4">
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3.5 space-y-3.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400">การตั้งค่าตารางกริด (Grid)</h2>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-200">แสดงเส้นตาราง</span>
+                        <input type="checkbox" id="gridVisibleCheck" checked onchange="updateGridConfig()" class="w-4 h-4 accent-amber-500 rounded">
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-200">ดูดหมุดลงช่องอัตโนมัติ (Snap)</span>
+                        <input type="checkbox" id="gridSnapCheck" checked onchange="updateGridConfig()" class="w-4 h-4 accent-amber-500 rounded">
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-200">แสดงป้ายเกราะ AC บนหมุด</span>
+                        <input type="checkbox" id="gridShowAcCheck" checked onchange="updateGridConfig()" class="w-4 h-4 accent-amber-500 rounded">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">ขนาดช่อง (1 ช่อง = 5 ฟุต)</span>
+                            <span id="gridSizeVal" class="font-bold text-amber-400">64 px</span>
+                        </div>
+                        <input type="range" id="gridSizeRange" min="24" max="160" value="64" oninput="updateGridConfig()" class="w-full accent-amber-500">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-slate-400">ความทึบของเส้นตาราง</span>
+                            <span id="gridOpacityVal" class="font-bold text-amber-400">35%</span>
+                        </div>
+                        <input type="range" id="gridOpacityRange" min="5" max="100" value="35" oninput="updateGridConfig()" class="w-full accent-amber-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1.5">สีเส้นตาราง</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="setGridColor('#ffffff')" class="h-7 rounded-lg bg-white border border-slate-400 text-[10px] text-slate-900 font-bold">ขาว</button>
+                            <button onclick="setGridColor('#000000')" class="h-7 rounded-lg bg-black border border-slate-600 text-[10px] text-white font-bold">ดำ</button>
+                            <button onclick="setGridColor('#f59e0b')" class="h-7 rounded-lg bg-amber-500 text-[10px] text-slate-950 font-bold">ทอง</button>
+                            <button onclick="setGridColor('#38bdf8')" class="h-7 rounded-lg bg-sky-400 text-[10px] text-slate-950 font-bold">ฟ้า</button>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 border-t border-vtt-border space-y-2.5">
+                        <p class="text-[11px] text-slate-400">เลื่อนตำแหน่งตารางให้ตรงกับภาพแผนที่:</p>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">แนวนอน (Offset X)</span>
+                                <span id="gridOffsetXVal" class="text-slate-200">0 px</span>
+                            </div>
+                            <input type="range" id="gridOffsetXRange" min="-100" max="100" value="0" oninput="updateGridConfig()" class="w-full accent-amber-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">แนวตั้ง (Offset Y)</span>
+                                <span id="gridOffsetYVal" class="text-slate-200">0 px</span>
+                            </div>
+                            <input type="range" id="gridOffsetYRange" min="-100" max="100" value="0" oninput="updateGridConfig()" class="w-full accent-amber-500">
+                        </div>
+                        <button onclick="resetGridOffset()" class="w-full py-1.5 rounded-xl bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-xs text-slate-300">รีเซ็ตตำแหน่งตาราง</button>
+                    </div>
+                </div>
+
+                <!-- Fog of War & Shadow Controls -->
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3.5 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400">ระบบบังแมพ & แสงเงา</h2>
+                        <button onclick="setTool('fog')" class="text-[11px] bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded-lg border border-amber-500/40">เปิดแปรงระบาย</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">เลือกขนาดหัวแปรง (1x1 ถึง 4x4) แล้วคลิกหรือลากบนแผนที่เพื่อถมปิดบังส่วนที่ยังไม่เปิดเผย (มืดสนิท 100%) หรือวางบล็อกเงาสลัว</p>
+
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">ขนาดหัวแปรงระบาย (ช่อง)</label>
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button onclick="setFogBrushSize(1)" id="sidebarBrushSize-1" class="py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs">1x1</button>
+                            <button onclick="setFogBrushSize(2)" id="sidebarBrushSize-2" class="py-1 rounded-lg bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-slate-300 text-xs">2x2</button>
+                            <button onclick="setFogBrushSize(3)" id="sidebarBrushSize-3" class="py-1 rounded-lg bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-slate-300 text-xs">3x3</button>
+                            <button onclick="setFogBrushSize(4)" id="sidebarBrushSize-4" class="py-1 rounded-lg bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-slate-300 text-xs">4x4</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-1.5 pt-1">
+                        <button onclick="fillAllFog('dark')" class="py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-vtt-border text-[11px] font-semibold text-slate-200">⬛ ปิดทั้งแมพ</button>
+                        <button onclick="fillAllFog('shadow')" class="py-1.5 rounded-xl bg-indigo-950/70 hover:bg-indigo-900/70 border border-indigo-800/60 text-[11px] font-semibold text-indigo-300">🌗 เงาทั้งแมพ</button>
+                        <button onclick="clearAllFog()" class="py-1.5 rounded-xl bg-emerald-950/70 hover:bg-emerald-900/70 border border-emerald-800/60 text-[11px] font-semibold text-emerald-300">☀️ เปิดทั้งหมด</button>
+                    </div>
+                </div>
+
+                <!-- Map Removal & Full Reset Card -->
+                <div class="bg-vtt-card border border-rose-950/70 rounded-2xl p-3.5 space-y-2.5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-rose-400">จัดการรูปแผนที่ & กระดาน</h2>
+                    <p class="text-[11px] text-slate-400 leading-relaxed">สามารถลบรูปแผนที่ปัจจุบันออกเพื่อเริ่มวางตารางใหม่ หรือล้างกระดานทั้งหมดได้ทันที</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="removeCurrentMap()" class="py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-[11px] font-semibold text-rose-300">🗑️ ลบเฉพาะรูปแมพ</button>
+                        <button onclick="resetEntireBoard()" class="py-2 rounded-xl bg-slate-900 hover:bg-rose-950 border border-vtt-border hover:border-rose-800 text-[11px] font-semibold text-slate-300 hover:text-rose-300">🧹 ล้างทั้งกระดาน</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Map Canvas Area -->
+        <main id="canvasContainer" class="flex-1 relative overflow-hidden cursor-grab">
+            <canvas id="vttCanvas"></canvas>
+
+            <!-- Floating Fog & Shadow Brush Toolbar -->
+            <div id="fogFloatingToolbar" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-vtt-panel/95 backdrop-blur border border-amber-500/70 px-3 py-2 rounded-2xl shadow-2xl flex flex-wrap items-center justify-center gap-2 max-w-[95vw]">
+                <div class="flex items-center gap-1">
+                    <button id="fogModeDarkBtn" onclick="setFogBrushMode('dark')" class="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 transition">⬛ ปิดแมพ (ทึบ 100%)</button>
+                    <button id="fogModeShadowBtn" onclick="setFogBrushMode('shadow')" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-vtt-bg text-slate-300 hover:text-white border border-vtt-border transition">🌗 ช่องเงา (ครึ้ม)</button>
+                    <button id="fogModeRevealBtn" onclick="setFogBrushMode('reveal')" class="px-2.5 py-1 rounded-xl text-xs font-semibold bg-vtt-bg text-slate-300 hover:text-white border border-vtt-border transition">☀️ เปิดแมพ</button>
+                </div>
+                <div class="h-4 w-px bg-vtt-border"></div>
+                <div class="flex items-center gap-1 bg-vtt-bg p-0.5 rounded-lg border border-vtt-border">
+                    <span class="text-[10px] text-slate-400 px-1.5">ขนาด:</span>
+                    <button onclick="setFogBrushSize(1)" id="fogSizeBtn-1" class="px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[11px] font-bold">1x1</button>
+                    <button onclick="setFogBrushSize(2)" id="fogSizeBtn-2" class="px-2 py-0.5 rounded text-slate-300 hover:text-white text-[11px] font-semibold">2x2</button>
+                    <button onclick="setFogBrushSize(3)" id="fogSizeBtn-3" class="px-2 py-0.5 rounded text-slate-300 hover:text-white text-[11px] font-semibold">3x3</button>
+                    <button onclick="setFogBrushSize(4)" id="fogSizeBtn-4" class="px-2 py-0.5 rounded text-slate-300 hover:text-white text-[11px] font-semibold">4x4</button>
+                </div>
+                <div class="h-4 w-px bg-vtt-border hidden sm:block"></div>
+                <button onclick="fillAllFog('dark')" class="px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-vtt-border text-[11px] text-slate-300" title="ถมปิดทั้งแผนที่">ปิดทั้งหมด</button>
+                <button onclick="clearAllFog()" class="px-2 py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 text-[11px] text-emerald-300" title="เปิดสว่างทั้งแผนที่">เปิดทั้งหมด</button>
+            </div>
+
+            <!-- Floating Skill AoE Template Toolbar -->
+            <div id="aoeFloatingToolbar" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-20 bg-vtt-panel/95 backdrop-blur border border-amber-500/70 px-3 py-2 rounded-2xl shadow-2xl flex flex-wrap items-center justify-center gap-2 max-w-[95vw]">
+                <!-- Shape Selector -->
+                <div class="flex items-center gap-1 bg-vtt-bg p-0.5 rounded-lg border border-vtt-border">
+                    <button onclick="setAoeShape('circle')" id="aoeShape-circle" class="px-2.5 py-1 rounded bg-amber-500 text-slate-950 text-[11px] font-bold">⭕ วงกลม</button>
+                    <button onclick="setAoeShape('square')" id="aoeShape-square" class="px-2.5 py-1 rounded text-slate-300 hover:text-white text-[11px] font-semibold">⬜ สี่เหลี่ยม</button>
+                </div>
+
+                <!-- Color Selector -->
+                <div class="flex items-center gap-1.5 bg-vtt-bg px-2 py-1 rounded-lg border border-vtt-border" id="aoeColorPicker">
+                    <button onclick="setAoeColor('#ef4444')" data-color="#ef4444" title="ไฟ / ดาเมจ (แดง)" class="w-4 h-4 rounded-full bg-red-500 ring-2 ring-white"></button>
+                    <button onclick="setAoeColor('#38bdf8')" data-color="#38bdf8" title="น้ำแข็ง / สายฟ้า (ฟ้า)" class="w-4 h-4 rounded-full bg-sky-400"></button>
+                    <button onclick="setAoeColor('#10b981')" data-color="#10b981" title="พิษ / ฮีล (เขียว)" class="w-4 h-4 rounded-full bg-emerald-500"></button>
+                    <button onclick="setAoeColor('#a855f7')" data-color="#a855f7" title="เวทมนตร์ / คำสาป (ม่วง)" class="w-4 h-4 rounded-full bg-purple-500"></button>
+                    <button onclick="setAoeColor('#f59e0b')" data-color="#f59e0b" title="แสงศักดิ์สิทธิ์ (ทอง)" class="w-4 h-4 rounded-full bg-amber-500"></button>
+                    <button onclick="setAoeColor('#64748b')" data-color="#64748b" title="หมอกควัน / ความมืด (เทา)" class="w-4 h-4 rounded-full bg-slate-500"></button>
+                </div>
+
+                <!-- Radius / Size in Feet -->
+                <div class="flex items-center gap-1 bg-vtt-bg px-2 py-0.5 rounded-lg border border-vtt-border">
+                    <span class="text-[10px] text-slate-400">รัศมี:</span>
+                    <select id="aoeRadiusSelect" onchange="setAoeRadiusFeet(parseInt(this.value))" class="bg-transparent text-xs font-bold text-amber-400 focus:outline-none">
+                        <option value="10" class="bg-slate-900">10 ฟุต (2 ช่อง)</option>
+                        <option value="15" class="bg-slate-900">15 ฟุต (3 ช่อง)</option>
+                        <option value="20" selected class="bg-slate-900">20 ฟุต (4 ช่อง)</option>
+                        <option value="30" class="bg-slate-900">30 ฟุต (6 ช่อง)</option>
+                        <option value="40" class="bg-slate-900">40 ฟุต (8 ช่อง)</option>
+                        <option value="60" class="bg-slate-900">60 ฟุต (12 ช่อง)</option>
+                    </select>
+                </div>
+
+                <!-- Label Input -->
+                <input type="text" id="aoeLabelInput" placeholder="ชื่อสกิล (เช่น Fireball)" class="w-28 sm:w-36 bg-vtt-bg border border-vtt-border rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500">
+
+                <button onclick="clearAllAoeTemplates()" class="px-2 py-1 rounded-lg bg-rose-950 hover:bg-rose-900 border border-rose-800 text-[11px] text-rose-300 font-semibold" title="ลบเอฟเฟกต์สกิลทั้งหมดบนกระดาน">ล้างทั้งหมด</button>
+            </div>
+
+            <!-- Selected Single AoE Quick Controller Bar -->
+            <div id="selectedAoeControlBar" class="hidden absolute bottom-16 left-1/2 -translate-x-1/2 z-20 bg-vtt-panel/95 backdrop-blur border border-amber-500/80 px-3.5 py-2 rounded-2xl shadow-2xl flex items-center justify-center gap-2.5 max-w-[95vw]">
+                <span class="text-xs font-bold text-amber-400 flex items-center gap-1">
+                    <span>🎯 เอฟเฟกต์ที่เลือก:</span>
+                    <span id="selectedAoeTitle" class="text-white">พื้นที่สกิล</span>
+                </span>
+                <div class="h-4 w-px bg-vtt-border"></div>
+                <button onclick="deleteSelectedAoe()" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow flex items-center gap-1">
+                    <span>🗑️ ลบอันนี้</span>
+                </button>
+                <button onclick="deselectAoe()" class="px-2 py-1 rounded-lg bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-xs text-slate-300">✕</button>
+            </div>
+
+            <!-- Floating Ruler Tooltip -->
+            <div id="rulerBadge" class="hidden pointer-events-none absolute top-4 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-amber-500 text-amber-300 px-4 py-1.5 rounded-full text-xs font-bold shadow-xl">
+                ระยะทาง: 0 ฟุต (0 ช่อง)
+            </div>
+
+            <!-- Floating Zoom Controls -->
+            <div class="absolute bottom-4 left-4 bg-vtt-panel/90 backdrop-blur border border-vtt-border rounded-2xl p-1.5 flex items-center gap-1 shadow-xl">
+                <button onclick="zoomCanvas(-0.15)" class="w-8 h-8 rounded-xl hover:bg-vtt-card flex items-center justify-center text-slate-200 font-bold" title="ซูมออก">-</button>
+                <span id="zoomPercentLabel" class="text-xs font-semibold text-slate-300 px-2 min-w-[52px] text-center">100%</span>
+                <button onclick="zoomCanvas(0.15)" class="w-8 h-8 rounded-xl hover:bg-vtt-card flex items-center justify-center text-slate-200 font-bold" title="ซูมเข้า">+</button>
+                <div class="h-4 w-px bg-vtt-border mx-0.5"></div>
+                <button onclick="fitMapToScreen()" class="px-2.5 h-8 rounded-xl hover:bg-vtt-card text-[11px] font-medium text-amber-400" title="จัดแผนที่ให้พอดีหน้าจอ">พอดีจอ</button>
+            </div>
+
+            <!-- Toast Notification -->
+            <div id="toastBox" class="pointer-events-none opacity-0 transition-opacity duration-300 absolute bottom-4 right-4 bg-slate-900/95 border border-amber-500/60 text-white px-4 py-2.5 rounded-xl text-xs shadow-2xl flex items-center gap-2 z-40">
+                <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                <span id="toastMessage">แจ้งเตือน</span>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Floating Overlay so center map NEVER shrinks -->
+        <aside id="rightSidebar" class="hidden w-80 sm:w-96 bg-vtt-panel/95 backdrop-blur-md border-l border-vtt-border flex-col shrink-0 z-20 absolute inset-y-0 right-0 shadow-2xl">
+            <div class="p-3 border-b border-vtt-border bg-vtt-bg/80 flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    จัดการข้อมูลหมุดตัวละคร
+                </span>
+                <button onclick="deselectToken()" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg hover:bg-vtt-card">✕ พับปิด</button>
+            </div>
+
+            <div id="inspectorContent" class="flex-1 overflow-y-auto p-3.5 space-y-3.5"></div>
+        </aside>
+    </div>
+
+    <script>
+        // ==================== APPLICATION STATE ====================
+        const STORAGE_KEY = 'dnd_vtt_clean_v6';
+
+        let state = {
+            mapImageSrc: null,
+            isBlankMap: false,
+            mapWidth: 1600,
+            mapHeight: 1100,
+            camera: { x: 40, y: 30, zoom: 0.75 },
+            grid: {
+                visible: true,
+                snap: true,
+                showAc: true,
+                size: 64,
+                opacity: 0.35,
+                color: '#ffffff',
+                offsetX: 0,
+                offsetY: 0
+            },
+            fog: {
+                cells: {}, // key: "col,row" -> 'dark' | 'shadow'
+                dmDarkOpacity: 1.0
+            },
+            aoeTemplates: [], // { id, shape, x, y, radiusFeet, color, label }
+            tokens: [],
+            selectedTokenId: null
+        };
+
+        let mapImgObj = null;
+        const avatarCache = {};
+        let newTokenDraftColor = '#10b981';
+        let newTokenDraftAvatar = null;
+        let rosterFilters = {
+            player: true,
+            enemy: false,
+            npc: false
+        };
+
+        // Canvas & Interaction State
+        const canvas = document.getElementById('vttCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        let currentTool = 'select'; // 'select' | 'pan' | 'ruler' | 'fog' | 'aoe'
+        let fogBrushMode = 'dark'; // 'dark' | 'shadow' | 'reveal'
+        let fogBrushSize = 1; // 1, 2, 3, 4
+        let hoverFogCell = null; // { col, row }
+        let isPaintingFog = false;
+        let lastPaintedFogCell = null;
+
+        let aoeDraft = {
+            shape: 'circle', // 'circle' | 'square'
+            color: '#ef4444',
+            radiusFeet: 20
+        };
+        let selectedAoeId = null;
+        let hoverWorldPos = null;
+        let draggingAoe = null;
+        let aoeDragOffset = { x: 0, y: 0 };
+
+        let isPanning = false;
+        let draggingToken = null;
+        let dragOffset = { x: 0, y: 0 };
+        let lastPointer = { x: 0, y: 0 };
+
+        let rulerStart = null;
+        let rulerEnd = null;
+        let isMeasuring = false;
+
+        // Conditions List (Including Charmed & Nauseated)
+        const CONDITIONS = [
+            { id: 'poisoned', label: 'ติดพิษ', icon: '🤢', color: '#22c55e' },
+            { id: 'charmed', label: 'ติดหลงเสน่ห์', icon: '💘', color: '#ec4899' },
+            { id: 'nauseated', label: 'คลื่นไส้', icon: '🤮', color: '#84cc16' },
+            { id: 'stunned', label: 'มึนงง', icon: '💫', color: '#eab308' },
+            { id: 'burning', label: 'ติดไฟ', icon: '🔥', color: '#f97316' },
+            { id: 'prone', label: 'ล้มลง', icon: '🛌', color: '#38bdf8' },
+            { id: 'blinded', label: 'ตาบอด', icon: '🙈', color: '#a855f7' },
+            { id: 'unconscious', label: 'หมดสติ', icon: '💀', color: '#ef4444' }
+        ];
+
+        // ==================== TOKEN DATA NORMALIZER ====================
+        function ensureTokenRpgData(tok) {
+            if (!tok.level) tok.level = 1;
+            if (!tok.charClass) tok.charClass = '';
+            if (!tok.ac) tok.ac = tok.baseAc || 12;
+            if (!Array.isArray(tok.inventory)) tok.inventory = [];
+            if (!Array.isArray(tok.skills)) tok.skills = [];
+            if (!Array.isArray(tok.conditions)) tok.conditions = [];
+            return tok;
+        }
+
+        function recalculateTokenTotals(tok) {
+            const totalStats = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+            STAT_KEYS.forEach(s => {
+                let val = Number(tok.stats?.[s.key] ?? 10) + Number(tok.bonuses?.[s.key] ?? 0);
+                (tok.equipment || []).forEach(eq => {
+                    if (eq.equipped !== false && eq.mods && eq.mods[s.key]) val += Number(eq.mods[s.key]);
+                });
+                (tok.buffs || []).forEach(bf => {
+                    if (bf.active !== false && bf.mods && bf.mods[s.key]) val += Number(bf.mods[s.key]);
+                });
+                totalStats[s.key] = val;
+            });
+
+            let ac = Number(tok.baseAc ?? tok.ac ?? 12) + Number(tok.bonuses?.ac ?? 0);
+            let speed = Number(tok.baseSpeed ?? 30) + Number(tok.bonuses?.speed ?? 0);
+
+            (tok.equipment || []).forEach(eq => {
+                if (eq.equipped !== false && eq.mods) {
+                    if (eq.mods.ac) ac += Number(eq.mods.ac);
+                    if (eq.mods.speed) speed += Number(eq.mods.speed);
+                }
+            });
+            (tok.buffs || []).forEach(bf => {
+                if (bf.active !== false && bf.mods) {
+                    if (bf.mods.ac) ac += Number(bf.mods.ac);
+                    if (bf.mods.speed) speed += Number(bf.mods.speed);
+                }
+            });
+
+            tok.computedStats = totalStats;
+            tok.ac = ac;
+            tok.speed = speed;
+            tok.profBonus = Math.ceil((tok.level || 1) / 4) + 1;
+        }
+
+        function getStatMod(score) {
+            return Math.floor(((score || 10) - 10) / 2);
+        }
+
+        function formatMod(mod) {
+            return mod >= 0 ? `+${mod}` : `${mod}`;
+        }
+
+        // ==================== TOOLBAR & NAVIGATION ====================
+        function setTool(tool) {
+            currentTool = tool;
+            const activeCls = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 text-slate-950 shadow transition';
+            const inactiveCls = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white transition';
+            document.getElementById('toolSelectBtn').className = tool === 'select' ? activeCls : inactiveCls;
+            document.getElementById('toolPanBtn').className = tool === 'pan' ? activeCls : inactiveCls;
+            document.getElementById('toolRulerBtn').className = tool === 'ruler' ? activeCls : inactiveCls;
+            document.getElementById('toolFogBtn').className = tool === 'fog' ? activeCls : inactiveCls;
+            document.getElementById('toolAoeBtn').className = tool === 'aoe' ? activeCls : inactiveCls;
+
+            const fogBar = document.getElementById('fogFloatingToolbar');
+            if (fogBar) {
+                if (tool === 'fog') fogBar.classList.remove('hidden');
+                else fogBar.classList.add('hidden');
+            }
+
+            const aoeBar = document.getElementById('aoeFloatingToolbar');
+            if (aoeBar) {
+                if (tool === 'aoe') aoeBar.classList.remove('hidden');
+                else aoeBar.classList.add('hidden');
+            }
+
+            canvas.style.cursor = tool === 'pan' ? 'grab' : ((tool === 'fog' || tool === 'aoe') ? 'crosshair' : 'default');
+        }
+
+        // ==================== SKILL AOE TEMPLATES ====================
+        function setAoeShape(shape) {
+            aoeDraft.shape = shape === 'square' ? 'square' : 'circle';
+            ['circle', 'square'].forEach(s => {
+                const btn = document.getElementById(`aoeShape-${s}`);
+                if (btn) {
+                    btn.className = s === aoeDraft.shape
+                        ? 'px-2.5 py-1 rounded bg-amber-500 text-slate-950 text-[11px] font-bold'
+                        : 'px-2.5 py-1 rounded text-slate-300 hover:text-white text-[11px] font-semibold';
+                }
+            });
+        }
+
+        function setAoeColor(hex) {
+            aoeDraft.color = hex;
+            document.querySelectorAll('#aoeColorPicker button').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-white');
+                if (btn.getAttribute('data-color') === hex) {
+                    btn.classList.add('ring-2', 'ring-white');
+                }
+            });
+        }
+
+        function setAoeRadiusFeet(feet) {
+            aoeDraft.radiusFeet = feet || 20;
+        }
+
+        function getSelectedAoe() {
+            if (!selectedAoeId || !Array.isArray(state.aoeTemplates)) return null;
+            return state.aoeTemplates.find(a => a.id === selectedAoeId) || null;
+        }
+
+        function selectAoeTemplate(id) {
+            selectedAoeId = id;
+            updateSelectedAoeBar();
+        }
+
+        function deselectAoe() {
+            selectedAoeId = null;
+            updateSelectedAoeBar();
+        }
+
+        function updateSelectedAoeBar() {
+            const bar = document.getElementById('selectedAoeControlBar');
+            const tpl = getSelectedAoe();
+            if (!bar) return;
+            if (!tpl) {
+                bar.classList.add('hidden');
+                return;
+            }
+            bar.classList.remove('hidden');
+            const shapeNames = { circle: 'วงกลม', square: 'สี่เหลี่ยม' };
+            document.getElementById('selectedAoeTitle').textContent = tpl.label
+                ? `${tpl.label} (${tpl.radiusFeet} ft)`
+                : `${shapeNames[tpl.shape] || 'พื้นที่สกิล'} (${tpl.radiusFeet} ft)`;
+        }
+
+        function deleteSelectedAoe() {
+            if (!selectedAoeId) return;
+            state.aoeTemplates = (state.aoeTemplates || []).filter(a => a.id !== selectedAoeId);
+            selectedAoeId = null;
+            updateSelectedAoeBar();
+            saveToLocalStorage();
+            showToast('ลบพื้นที่เอฟเฟกต์สกิลที่เลือกแล้ว');
+        }
+
+        function clearAllAoeTemplates() {
+            state.aoeTemplates = [];
+            selectedAoeId = null;
+            updateSelectedAoeBar();
+            saveToLocalStorage();
+            showToast('ล้างพื้นที่เอฟเฟกต์สกิลทั้งหมดแล้ว');
+        }
+
+        function hexToRgba(hex, alpha) {
+            const clean = hex.replace('#', '');
+            const r = parseInt(clean.substring(0, 2), 16) || 239;
+            const g = parseInt(clean.substring(2, 4), 16) || 68;
+            const b = parseInt(clean.substring(4, 6), 16) || 68;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function findAoeAtWorld(wx, wy) {
+            if (!Array.isArray(state.aoeTemplates)) return null;
+            const gs = state.grid.size || 64;
+            for (let i = state.aoeTemplates.length - 1; i >= 0; i--) {
+                const tpl = state.aoeTemplates[i];
+                const radiusPx = ((tpl.radiusFeet || 20) / 5) * gs;
+                const dx = wx - tpl.x;
+                const dy = wy - tpl.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (tpl.shape === 'square') {
+                    if (Math.abs(dx) <= radiusPx && Math.abs(dy) <= radiusPx) {
+                        return tpl;
+                    }
+                } else {
+                    if (dist <= Math.max(24, radiusPx)) {
+                        return tpl;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // ==================== FOG OF WAR & SHADOW BRUSH ====================
+        function setFogBrushMode(mode) {
+            fogBrushMode = mode;
+            const activeBtn = 'px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-500 text-slate-950 transition';
+            const normalBtn = 'px-2.5 py-1 rounded-xl text-xs font-semibold bg-vtt-bg text-slate-300 hover:text-white border border-vtt-border transition';
+            document.getElementById('fogModeDarkBtn').className = mode === 'dark' ? activeBtn : normalBtn;
+            document.getElementById('fogModeShadowBtn').className = mode === 'shadow' ? activeBtn : normalBtn;
+            document.getElementById('fogModeRevealBtn').className = mode === 'reveal' ? activeBtn : normalBtn;
+        }
+
+        function setFogBrushSize(size) {
+            fogBrushSize = size;
+            [1, 2, 3, 4].forEach(s => {
+                const floatBtn = document.getElementById(`fogSizeBtn-${s}`);
+                if (floatBtn) {
+                    floatBtn.className = s === size
+                        ? 'px-2 py-0.5 rounded bg-amber-500 text-slate-950 text-[11px] font-bold'
+                        : 'px-2 py-0.5 rounded text-slate-300 hover:text-white text-[11px] font-semibold';
+                }
+                const sideBtn = document.getElementById(`sidebarBrushSize-${s}`);
+                if (sideBtn) {
+                    sideBtn.className = s === size
+                        ? 'py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs'
+                        : 'py-1 rounded-lg bg-vtt-bg hover:bg-slate-800 border border-vtt-border text-slate-300 text-xs';
+                }
+            });
+        }
+
+        function worldToGridCell(wx, wy) {
+            const gs = state.grid.size || 64;
+            const col = Math.floor((wx - state.grid.offsetX) / gs);
+            const row = Math.floor((wy - state.grid.offsetY) / gs);
+            return { col, row };
+        }
+
+        function applyFogBrushAtWorld(wx, wy) {
+            const { col, row } = worldToGridCell(wx, wy);
+            const key = `${col},${row}`;
+            if (lastPaintedFogCell === key) return;
+            lastPaintedFogCell = key;
+
+            if (!state.fog) state.fog = { cells: {}, dmDarkOpacity: 1.0 };
+            for (let dc = 0; dc < fogBrushSize; dc++) {
+                for (let dr = 0; dr < fogBrushSize; dr++) {
+                    const cellKey = `${col + dc},${row + dr}`;
+                    if (fogBrushMode === 'reveal') {
+                        delete state.fog.cells[cellKey];
+                    } else {
+                        state.fog.cells[cellKey] = fogBrushMode; // 'dark' | 'shadow'
+                    }
+                }
+            }
+            saveToLocalStorage();
+        }
+
+        function fillAllFog(mode) {
+            if (!state.fog) state.fog = { cells: {}, dmDarkOpacity: 1.0 };
+            const gs = state.grid.size || 64;
+            const startCol = Math.floor(-state.grid.offsetX / gs) - 1;
+            const endCol = Math.ceil((state.mapWidth - state.grid.offsetX) / gs) + 1;
+            const startRow = Math.floor(-state.grid.offsetY / gs) - 1;
+            const endRow = Math.ceil((state.mapHeight - state.grid.offsetY) / gs) + 1;
+
+            state.fog.cells = {};
+            for (let c = startCol; c <= endCol; c++) {
+                for (let r = startRow; r <= endRow; r++) {
+                    state.fog.cells[`${c},${r}`] = mode;
+                }
+            }
+            saveToLocalStorage();
+            showToast(mode === 'dark' ? 'ปิดทึบทั้งแผนที่แล้ว' : 'ใส่เงาสลัวทั้งแผนที่แล้ว');
+        }
+
+        function clearAllFog() {
+            if (!state.fog) state.fog = { cells: {}, dmDarkOpacity: 1.0 };
+            state.fog.cells = {};
+            saveToLocalStorage();
+            showToast('เปิดสว่างทั้งแผนที่แล้ว');
+        }
+
+        function switchLeftTab(tab) {
+            document.getElementById('leftTabTokens').classList.toggle('hidden', tab !== 'tokens');
+            document.getElementById('leftTabGrid').classList.toggle('hidden', tab !== 'grid');
+
+            const active = 'py-2 text-xs font-semibold rounded-lg bg-vtt-card text-amber-400 shadow';
+            const inactive = 'py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-slate-200';
+            document.getElementById('tabBtnTokens').className = tab === 'tokens' ? active : inactive;
+            document.getElementById('tabBtnGrid').className = tab === 'grid' ? active : inactive;
+        }
+
+        function toggleLeftSidebar() {
+            const el = document.getElementById('leftSidebar');
+            const label = document.getElementById('toggleLeftLabel');
+            const isCollapsed = el.classList.toggle('-translate-x-full');
+            if (label) {
+                label.textContent = isCollapsed ? 'เปิดแถบซ้าย' : 'พับแถบซ้าย';
+            }
+        }
+
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            const label = document.getElementById('toastMessage');
+            label.textContent = msg;
+            box.classList.remove('opacity-0');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => box.classList.add('opacity-0'), 2800);
+        }
+
+        // ==================== CANVAS & MAP RENDERING ====================
+        function resizeCanvas() {
+            const rect = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function screenToWorld(sx, sy) {
+            return {
+                x: (sx - state.camera.x) / state.camera.zoom,
+                y: (sy - state.camera.y) / state.camera.zoom
+            };
+        }
+
+        function snapPositionToGrid(wx, wy, tokenSizeCells = 1) {
+            if (!state.grid.snap) return { x: wx, y: wy };
+            const gs = state.grid.size;
+            const halfSpan = (tokenSizeCells * gs) / 2;
+            const relX = wx - state.grid.offsetX - halfSpan;
+            const relY = wy - state.grid.offsetY - halfSpan;
+            const snappedX = Math.round(relX / gs) * gs + state.grid.offsetX + halfSpan;
+            const snappedY = Math.round(relY / gs) * gs + state.grid.offsetY + halfSpan;
+            return { x: snappedX, y: snappedY };
+        }
+
+        function zoomCanvas(delta, centerX = null, centerY = null) {
+            const rect = container.getBoundingClientRect();
+            const cx = centerX !== null ? centerX : rect.width / 2;
+            const cy = centerY !== null ? centerY : rect.height / 2;
+            const oldZoom = state.camera.zoom;
+            const newZoom = Math.min(3.0, Math.max(0.2, oldZoom + delta));
+            const worldBefore = screenToWorld(cx, cy);
+            state.camera.zoom = newZoom;
+            state.camera.x = cx - worldBefore.x * newZoom;
+            state.camera.y = cy - worldBefore.y * newZoom;
+            document.getElementById('zoomPercentLabel').textContent = Math.round(newZoom * 100) + '%';
+        }
+
+        function fitMapToScreen() {
+            const rect = container.getBoundingClientRect();
+            const pad = 40;
+            const scaleX = (rect.width - pad) / state.mapWidth;
+            const scaleY = (rect.height - pad) / state.mapHeight;
+            const zoom = Math.min(scaleX, scaleY, 1.2);
+            state.camera.zoom = Math.max(0.2, zoom);
+            state.camera.x = (rect.width - state.mapWidth * state.camera.zoom) / 2;
+            state.camera.y = (rect.height - state.mapHeight * state.camera.zoom) / 2;
+            document.getElementById('zoomPercentLabel').textContent = Math.round(state.camera.zoom * 100) + '%';
+        }
+
+        function renderLoop() {
+            drawBoard();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawBoard() {
+            const rect = container.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+
+            ctx.save();
+            ctx.translate(state.camera.x, state.camera.y);
+            ctx.scale(state.camera.zoom, state.camera.zoom);
+
+            // 1. Map Background
+            ctx.shadowColor = 'rgba(0,0,0,0.65)';
+            ctx.shadowBlur = 30;
+            ctx.fillStyle = '#151c28';
+            ctx.fillRect(0, 0, state.mapWidth, state.mapHeight);
+            ctx.shadowBlur = 0;
+
+            if (mapImgObj && mapImgObj.complete && mapImgObj.naturalWidth > 0) {
+                ctx.drawImage(mapImgObj, 0, 0, state.mapWidth, state.mapHeight);
+            } else if (!state.isBlankMap) {
+                drawProceduralDungeonFloor();
+            } else {
+                // Clean blank slate grid board when map is deleted
+                ctx.fillStyle = '#111620';
+                ctx.fillRect(0, 0, state.mapWidth, state.mapHeight);
+                ctx.strokeStyle = '#28334a';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(2, 2, state.mapWidth - 4, state.mapHeight - 4);
+            }
+
+            // 2. Grid Overlay
+            if (state.grid.visible) {
+                drawGridOverlay();
+            }
+
+            // 2.5 Skill AoE Templates (Underneath tokens so characters remain clearly visible)
+            drawAoeTemplatesLayer();
+
+            // 3. Tokens
+            state.tokens.forEach(tok => drawTokenOnCanvas(tok));
+
+            // 4. Fog of War & Shadow Blocks Overlay
+            drawFogAndShadowsOverlay();
+
+            // 5. Ruler Line
+            if (rulerStart && rulerEnd) {
+                drawRulerOverlay();
+            }
+
+            ctx.restore();
+        }
+
+        function drawProceduralDungeonFloor() {
+            ctx.fillStyle = '#18202c';
+            ctx.fillRect(0, 0, state.mapWidth, state.mapHeight);
+
+            ctx.strokeStyle = '#243042';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(48, 48, state.mapWidth - 96, state.mapHeight - 96);
+
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(state.mapWidth / 2, state.mapHeight / 2, 180, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#d97706';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+            ctx.font = 'bold 28px Cinzel, serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ANCIENT SANCTUM', state.mapWidth / 2, state.mapHeight / 2 + 8);
+        }
+
+        function drawGridOverlay() {
+            const gs = state.grid.size;
+            ctx.save();
+            ctx.strokeStyle = state.grid.color;
+            ctx.globalAlpha = state.grid.opacity;
+            ctx.lineWidth = 1;
+
+            ctx.beginPath();
+            for (let x = state.grid.offsetX % gs; x <= state.mapWidth; x += gs) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, state.mapHeight);
+            }
+            for (let y = state.grid.offsetY % gs; y <= state.mapHeight; y += gs) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(state.mapWidth, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawSingleAoeTemplate(tpl, isPreview = false) {
+            const gs = state.grid.size || 64;
+            const radiusPx = ((tpl.radiusFeet || 20) / 5) * gs;
+            const isSelected = !isPreview && tpl.id === selectedAoeId;
+            const fillAlpha = isPreview ? 0.16 : (isSelected ? 0.28 : 0.22);
+            const strokeAlpha = isPreview ? 0.65 : (isSelected ? 0.95 : 0.75);
+
+            ctx.save();
+            ctx.fillStyle = hexToRgba(tpl.color, fillAlpha);
+            ctx.strokeStyle = isSelected ? '#fbbf24' : hexToRgba(tpl.color, strokeAlpha);
+            ctx.lineWidth = Math.max(2, (isSelected ? 3 : 2.5) / state.camera.zoom);
+            if (isPreview) ctx.setLineDash([6, 4]);
+
+            ctx.beginPath();
+            if (tpl.shape === 'square') {
+                ctx.rect(tpl.x - radiusPx, tpl.y - radiusPx, radiusPx * 2, radiusPx * 2);
+            } else {
+                ctx.arc(tpl.x, tpl.y, radiusPx, 0, Math.PI * 2);
+            }
+            ctx.fill();
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Center anchor dot
+            ctx.fillStyle = isSelected ? '#fbbf24' : hexToRgba(tpl.color, 0.9);
+            ctx.beginPath();
+            ctx.arc(tpl.x, tpl.y, isSelected ? 5 : 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Label badge
+            const badgeText = tpl.label ? `${tpl.label} (${tpl.radiusFeet} ft)` : `${tpl.radiusFeet} ft`;
+            ctx.font = '600 11px Prompt, sans-serif';
+            const tw = ctx.measureText(badgeText).width;
+            const pw = tw + 12;
+            const ph = 18;
+            ctx.fillStyle = 'rgba(11, 14, 20, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(tpl.x - pw / 2, tpl.y - ph - 10, pw, ph, 5);
+            ctx.fill();
+
+            ctx.fillStyle = isSelected ? '#fbbf24' : '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(badgeText, tpl.x, tpl.y - ph / 2 - 10);
+
+            ctx.restore();
+        }
+
+        function drawAoeTemplatesLayer() {
+            if (Array.isArray(state.aoeTemplates)) {
+                state.aoeTemplates.forEach(tpl => drawSingleAoeTemplate(tpl, false));
+            }
+            if (currentTool === 'aoe' && hoverWorldPos) {
+                const labelVal = (document.getElementById('aoeLabelInput')?.value || '').trim();
+                drawSingleAoeTemplate({
+                    shape: aoeDraft.shape === 'square' ? 'square' : 'circle',
+                    x: hoverWorldPos.x,
+                    y: hoverWorldPos.y,
+                    radiusFeet: aoeDraft.radiusFeet,
+                    color: aoeDraft.color,
+                    label: labelVal
+                }, true);
+            }
+        }
+
+        function drawFogAndShadowsOverlay() {
+            const gs = state.grid.size || 64;
+            const cells = state.fog?.cells || {};
+
+            ctx.save();
+            for (const [key, mode] of Object.entries(cells)) {
+                const [colStr, rowStr] = key.split(',');
+                const col = parseInt(colStr, 10);
+                const row = parseInt(rowStr, 10);
+                const x = col * gs + state.grid.offsetX;
+                const y = row * gs + state.grid.offsetY;
+
+                if (mode === 'dark') {
+                    // Solid 100% opaque fog block
+                    ctx.fillStyle = '#05070c';
+                    ctx.fillRect(x - 0.5, y - 0.5, gs + 1, gs + 1);
+                } else if (mode === 'shadow') {
+                    // Dim / shadow block
+                    ctx.fillStyle = 'rgba(8, 12, 24, 0.48)';
+                    ctx.fillRect(x, y, gs, gs);
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x + 0.5, y + 0.5, gs - 1, gs - 1);
+                }
+            }
+
+            // Brush hover preview cursor (supports 1x1 to 4x4)
+            if (currentTool === 'fog' && hoverFogCell) {
+                const hx = hoverFogCell.col * gs + state.grid.offsetX;
+                const hy = hoverFogCell.row * gs + state.grid.offsetY;
+                const span = gs * fogBrushSize;
+                ctx.fillStyle = fogBrushMode === 'reveal'
+                    ? 'rgba(16, 185, 129, 0.25)'
+                    : (fogBrushMode === 'shadow' ? 'rgba(99, 102, 241, 0.28)' : 'rgba(245, 158, 11, 0.28)');
+                ctx.fillRect(hx, hy, span, span);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(hx + 1, hy + 1, span - 2, span - 2);
+            }
+            ctx.restore();
+        }
+
+        function drawTokenOnCanvas(tok) {
+            const gs = state.grid.size;
+            const radius = (tok.size * gs) * 0.43;
+            const isSelected = tok.id === state.selectedTokenId;
+
+            ctx.save();
+
+            // Selection Pulse Ring
+            if (isSelected) {
+                ctx.beginPath();
+                ctx.arc(tok.x, tok.y, radius + 6, 0, Math.PI * 2);
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([6, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Base Circle & Avatar
+            ctx.beginPath();
+            ctx.arc(tok.x, tok.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#1e293b';
+            ctx.fill();
+
+            if (tok.avatar && avatarCache[tok.avatar] && avatarCache[tok.avatar].complete) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(tok.x, tok.y, radius - 2, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.drawImage(avatarCache[tok.avatar], tok.x - radius, tok.y - radius, radius * 2, radius * 2);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = '#f8fafc';
+                ctx.font = `bold ${Math.max(14, radius * 0.72)}px Prompt, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                const label = tok.emoji ? tok.emoji : (tok.name || '?').slice(0, 2).toUpperCase();
+                ctx.fillText(label, tok.x, tok.y + 1);
+            }
+
+            // Border Ring
+            ctx.beginPath();
+            ctx.arc(tok.x, tok.y, radius, 0, Math.PI * 2);
+            ctx.strokeStyle = tok.color || '#10b981';
+            ctx.lineWidth = Math.max(3, radius * 0.11);
+            ctx.stroke();
+
+            // AC Shield Badge (Top-Left)
+            if (state.grid.showAc && tok.ac) {
+                const bx = tok.x - radius * 0.72;
+                const by = tok.y - radius * 0.72;
+                const br = Math.max(11, radius * 0.34);
+                ctx.beginPath();
+                ctx.arc(bx, by, br, 0, Math.PI * 2);
+                ctx.fillStyle = '#0f172a';
+                ctx.fill();
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = `bold ${Math.max(9, br * 0.9)}px Prompt, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(tok.ac, bx, by + 0.5);
+            }
+
+            // Condition Icons (Top-Right)
+            if (Array.isArray(tok.conditions) && tok.conditions.length > 0) {
+                tok.conditions.slice(0, 4).forEach((condId, idx) => {
+                    const cond = CONDITIONS.find(c => c.id === condId);
+                    if (!cond) return;
+                    const angle = -Math.PI / 4 + idx * 0.55;
+                    const cx = tok.x + Math.cos(angle) * (radius + 6);
+                    const cy = tok.y + Math.sin(angle) * (radius + 6);
+                    ctx.font = `${Math.max(12, radius * 0.42)}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(cond.icon, cx, cy);
+                });
+            }
+
+            // HP & MP Bars + Name Tag Below Token
+            const barW = Math.max(46, radius * 2.1);
+            const barH = 6;
+            const startX = tok.x - barW / 2;
+            let curY = tok.y + radius + 5;
+
+            // HP Bar
+            const hpPct = Math.max(0, Math.min(1, (tok.hp || 0) / Math.max(1, tok.maxHp || 1)));
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.fillRect(startX - 1, curY - 1, barW + 2, barH + 2);
+            ctx.fillStyle = hpPct > 0.5 ? '#10b981' : (hpPct > 0.25 ? '#f59e0b' : '#ef4444');
+            ctx.fillRect(startX, curY, barW * hpPct, barH);
+            curY += barH + 2;
+
+            // MP Bar (only if maxMp > 0)
+            if ((tok.maxMp || 0) > 0) {
+                const mpPct = Math.max(0, Math.min(1, (tok.mp || 0) / tok.maxMp));
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.fillRect(startX - 1, curY - 1, barW + 2, barH - 1);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fillRect(startX, curY, barW * mpPct, barH - 2);
+                curY += barH + 1;
+            }
+
+            // Name Pill
+            const nameText = tok.name || 'Unnamed';
+            ctx.font = '600 11px Prompt, sans-serif';
+            const textW = ctx.measureText(nameText).width;
+            const pillW = textW + 10;
+            const pillH = 16;
+            ctx.fillStyle = 'rgba(11, 14, 20, 0.85)';
+            ctx.beginPath();
+            ctx.roundRect(tok.x - pillW / 2, curY + 1, pillW, pillH, 5);
+            ctx.fill();
+
+            ctx.fillStyle = '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(nameText, tok.x, curY + 1 + pillH / 2);
+
+            ctx.restore();
+        }
+
+        function drawRulerOverlay() {
+            const dx = rulerEnd.x - rulerStart.x;
+            const dy = rulerEnd.y - rulerStart.y;
+            const distPx = Math.hypot(dx, dy);
+            const cells = distPx / state.grid.size;
+            const feet = Math.round(cells * 5);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(rulerStart.x, rulerStart.y);
+            ctx.lineTo(rulerEnd.x, rulerEnd.y);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(rulerStart.x, rulerStart.y, 5, 0, Math.PI * 2);
+            ctx.arc(rulerEnd.x, rulerEnd.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            const badge = document.getElementById('rulerBadge');
+            badge.classList.remove('hidden');
+            badge.textContent = `ระยะทาง: ${feet} ฟุต (${cells.toFixed(1)} ช่อง)`;
+        }
+
+        // ==================== POINTER & CANVAS INTERACTION ====================
+        function getCanvasPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]);
+            const clientX = touch ? touch.clientX : e.clientX;
+            const clientY = touch ? touch.clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function findTokenAtWorld(wx, wy) {
+            const gs = state.grid.size || 64;
+            for (let i = state.tokens.length - 1; i >= 0; i--) {
+                const tok = state.tokens[i];
+                const radius = Math.max(28, ((tok.size || 1) * gs) * 0.55);
+                if (Math.hypot(wx - tok.x, wy - tok.y) <= radius) {
+                    return tok;
+                }
+            }
+            return null;
+        }
+
+        function onCanvasPointerDown(e) {
+            if (e.button === 2) return;
+            const pos = getCanvasPos(e);
+            const worldPos = screenToWorld(pos.x, pos.y);
+
+            if (currentTool === 'fog') {
+                isPaintingFog = true;
+                lastPaintedFogCell = null;
+                applyFogBrushAtWorld(worldPos.x, worldPos.y);
+                return;
+            }
+
+            if (currentTool === 'aoe') {
+                const labelVal = (document.getElementById('aoeLabelInput')?.value || '').trim();
+                const snapPos = state.grid.snap
+                    ? {
+                        x: Math.round((worldPos.x - state.grid.offsetX) / state.grid.size) * state.grid.size + state.grid.offsetX,
+                        y: Math.round((worldPos.y - state.grid.offsetY) / state.grid.size) * state.grid.size + state.grid.offsetY
+                    }
+                    : worldPos;
+                if (!Array.isArray(state.aoeTemplates)) state.aoeTemplates = [];
+                const newId = 'aoe-' + Date.now();
+                state.aoeTemplates.push({
+                    id: newId,
+                    shape: aoeDraft.shape === 'square' ? 'square' : 'circle',
+                    x: snapPos.x,
+                    y: snapPos.y,
+                    radiusFeet: aoeDraft.radiusFeet,
+                    color: aoeDraft.color,
+                    label: labelVal
+                });
+                selectAoeTemplate(newId);
+                setTool('select');
+                saveToLocalStorage();
+                showToast('วางพื้นที่เอฟเฟกต์สกิลแล้ว');
+                return;
+            }
+
+            if (currentTool === 'ruler') {
+                isMeasuring = true;
+                rulerStart = worldPos;
+                rulerEnd = worldPos;
+                return;
+            }
+
+            // 1. Check Token FIRST in BOTH 'select' and 'pan' modes!
+            const hitTok = findTokenAtWorld(worldPos.x, worldPos.y);
+            if (hitTok) {
+                e.stopPropagation();
+                isPanning = false;
+                draggingAoe = null;
+                deselectAoe();
+                state.selectedTokenId = hitTok.id;
+                draggingToken = hitTok;
+                dragOffset = { x: worldPos.x - hitTok.x, y: worldPos.y - hitTok.y };
+                canvas.style.cursor = 'grabbing';
+                state.tokens = state.tokens.filter(t => t.id !== hitTok.id);
+                state.tokens.push(hitTok);
+                renderAll();
+                return;
+            }
+
+            if (currentTool === 'pan' || e.button === 1) {
+                isPanning = true;
+                lastPointer = { x: pos.x, y: pos.y };
+                canvas.style.cursor = 'grabbing';
+                return;
+            }
+
+            // 2. Check Skill AoE Template
+            const hitAoe = findAoeAtWorld(worldPos.x, worldPos.y);
+            if (hitAoe) {
+                isPanning = false;
+                selectAoeTemplate(hitAoe.id);
+                draggingAoe = hitAoe;
+                aoeDragOffset = { x: worldPos.x - hitAoe.x, y: worldPos.y - hitAoe.y };
+                canvas.style.cursor = 'grabbing';
+                return;
+            }
+
+            // 3. Empty space -> Deselect AoE & Pan map
+            deselectAoe();
+            isPanning = true;
+            lastPointer = { x: pos.x, y: pos.y };
+            canvas.style.cursor = 'grabbing';
+        }
+
+        function onCanvasPointerMove(e) {
+            const pos = getCanvasPos(e);
+            const worldPos = screenToWorld(pos.x, pos.y);
+
+            if (currentTool === 'fog') {
+                hoverFogCell = worldToGridCell(worldPos.x, worldPos.y);
+            } else {
+                hoverFogCell = null;
+            }
+
+            if (currentTool === 'aoe') {
+                hoverWorldPos = state.grid.snap
+                    ? {
+                        x: Math.round((worldPos.x - state.grid.offsetX) / state.grid.size) * state.grid.size + state.grid.offsetX,
+                        y: Math.round((worldPos.y - state.grid.offsetY) / state.grid.size) * state.grid.size + state.grid.offsetY
+                    }
+                    : worldPos;
+            } else {
+                hoverWorldPos = null;
+            }
+
+            if (isPaintingFog) {
+                applyFogBrushAtWorld(worldPos.x, worldPos.y);
+                return;
+            }
+
+            if (draggingToken) {
+                if (e.cancelable) e.preventDefault();
+                draggingToken.x = worldPos.x - dragOffset.x;
+                draggingToken.y = worldPos.y - dragOffset.y;
+                return;
+            }
+
+            if (draggingAoe) {
+                if (e.cancelable) e.preventDefault();
+                draggingAoe.x = worldPos.x - aoeDragOffset.x;
+                draggingAoe.y = worldPos.y - aoeDragOffset.y;
+                return;
+            }
+
+            if (isMeasuring) {
+                rulerEnd = worldPos;
+                return;
+            }
+
+            if (isPanning) {
+                state.camera.x += pos.x - lastPointer.x;
+                state.camera.y += pos.y - lastPointer.y;
+                lastPointer = { x: pos.x, y: pos.y };
+                return;
+            }
+
+            // Hover cursor feedback when in select mode
+            if (currentTool === 'select') {
+                const overTok = findTokenAtWorld(worldPos.x, worldPos.y);
+                const overAoe = !overTok && findAoeAtWorld(worldPos.x, worldPos.y);
+                canvas.style.cursor = (overTok || overAoe) ? 'grab' : 'default';
+            }
+        }
+
+        function onCanvasPointerUp() {
+            if (isPaintingFog) {
+                isPaintingFog = false;
+                lastPaintedFogCell = null;
+            }
+            if (isPanning) {
+                isPanning = false;
+                canvas.style.cursor = currentTool === 'pan' ? 'grab' : ((currentTool === 'fog' || currentTool === 'aoe') ? 'crosshair' : 'default');
+            }
+            if (isMeasuring) {
+                isMeasuring = false;
+                setTimeout(() => {
+                    if (!isMeasuring) {
+                        rulerStart = null;
+                        rulerEnd = null;
+                        document.getElementById('rulerBadge').classList.add('hidden');
+                    }
+                }, 1500);
+            }
+            if (draggingAoe) {
+                if (state.grid.snap) {
+                    draggingAoe.x = Math.round((draggingAoe.x - state.grid.offsetX) / state.grid.size) * state.grid.size + state.grid.offsetX;
+                    draggingAoe.y = Math.round((draggingAoe.y - state.grid.offsetY) / state.grid.size) * state.grid.size + state.grid.offsetY;
+                }
+                draggingAoe = null;
+                canvas.style.cursor = 'default';
+                saveToLocalStorage();
+            }
+            if (draggingToken) {
+                const snapped = snapPositionToGrid(draggingToken.x, draggingToken.y, draggingToken.size);
+                draggingToken.x = snapped.x;
+                draggingToken.y = snapped.y;
+                draggingToken = null;
+                canvas.style.cursor = 'default';
+                saveToLocalStorage();
+            }
+        }
+
+        canvas.addEventListener('mousedown', onCanvasPointerDown);
+        window.addEventListener('mousemove', onCanvasPointerMove);
+        window.addEventListener('mouseup', onCanvasPointerUp);
+
+        // Right-click on canvas to delete an AoE template under cursor
+        canvas.addEventListener('contextmenu', (e) => {
+            const pos = getCanvasPos(e);
+            const worldPos = screenToWorld(pos.x, pos.y);
+            const hitAoe = findAoeAtWorld(worldPos.x, worldPos.y);
+            if (hitAoe) {
+                e.preventDefault();
+                if (selectedAoeId === hitAoe.id) {
+                    selectedAoeId = null;
+                    updateSelectedAoeBar();
+                }
+                state.aoeTemplates = state.aoeTemplates.filter(a => a.id !== hitAoe.id);
+                saveToLocalStorage();
+                showToast('ลบพื้นที่เอฟเฟกต์สกิลแล้ว');
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) onCanvasPointerDown(e);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1) onCanvasPointerMove(e);
+        }, { passive: false });
+        canvas.addEventListener('touchend', onCanvasPointerUp);
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const pos = getCanvasPos(e);
+            const delta = e.deltaY < 0 ? 0.1 : -0.1;
+            zoomCanvas(delta, pos.x, pos.y);
+        }, { passive: false });
+
+        // ==================== TOKEN MANAGEMENT ====================
+        function selectNewTokenColor(hex) {
+            newTokenDraftColor = hex;
+            document.querySelectorAll('#colorSwatches button').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-white');
+                if (btn.getAttribute('data-color') === hex) btn.classList.add('ring-2', 'ring-white');
+            });
+        }
+
+        document.getElementById('newTokenAvatarInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                newTokenDraftAvatar = ev.target.result;
+                const img = new Image();
+                img.src = newTokenDraftAvatar;
+                avatarCache[newTokenDraftAvatar] = img;
+                document.getElementById('avatarFileLabel').textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function createNewToken() {
+            const nameInput = document.getElementById('newTokenName');
+            const name = nameInput.value.trim() || 'นักผจญภัย';
+            const faction = document.getElementById('newTokenFaction').value;
+            const charClass = document.getElementById('newTokenClass').value.trim();
+            const level = parseInt(document.getElementById('newTokenLevel').value) || 1;
+            const ac = parseInt(document.getElementById('newTokenAc').value) || 12;
+            const hp = parseInt(document.getElementById('newTokenHp').value) || 20;
+            const maxHp = parseInt(document.getElementById('newTokenMaxHp').value) || hp;
+            const mp = parseInt(document.getElementById('newTokenMp').value) || 0;
+            const maxMp = parseInt(document.getElementById('newTokenMaxMp').value) || mp;
+            const size = parseInt(document.getElementById('newTokenSize').value) || 1;
+            const emoji = document.getElementById('newTokenEmoji').value;
+
+            const rect = container.getBoundingClientRect();
+            const centerWorld = screenToWorld(rect.width / 2, rect.height / 2);
+            const snapped = snapPositionToGrid(centerWorld.x, centerWorld.y, size);
+
+            const tok = ensureTokenRpgData({
+                id: 'tok-' + Date.now(),
+                name,
+                faction,
+                charClass,
+                level,
+                baseAc: ac,
+                ac,
+                hp,
+                maxHp,
+                mp,
+                maxMp,
+                size,
+                color: newTokenDraftColor,
+                emoji,
+                avatar: newTokenDraftAvatar,
+                x: snapped.x,
+                y: snapped.y,
+                conditions: [],
+                skills: [],
+                inventory: [],
+                equipment: [],
+                buffs: []
+            });
+
+            state.tokens.push(tok);
+            state.selectedTokenId = tok.id;
+
+            nameInput.value = '';
+            newTokenDraftAvatar = null;
+            document.getElementById('avatarFileLabel').textContent = 'เลือกรูป...';
+
+            renderAll();
+            saveToLocalStorage();
+            showToast(`วางหมุด "${tok.name}" ลงแผนที่แล้ว`);
+        }
+
+        function clearAllTokens() {
+            state.tokens = [];
+            state.selectedTokenId = null;
+            renderAll();
+            saveToLocalStorage();
+            showToast('ล้างหมุดทั้งหมดแล้ว');
+        }
+
+        function selectToken(id) {
+            state.selectedTokenId = id;
+            renderAll();
+        }
+
+        function deselectToken() {
+            state.selectedTokenId = null;
+            renderAll();
+        }
+
+        function getSelectedToken() {
+            return state.tokens.find(t => t.id === state.selectedTokenId) || null;
+        }
+
+        function adjustTokenPool(id, field, delta) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            if (field === 'hp') {
+                tok.hp = Math.max(0, Math.min(tok.maxHp, (tok.hp || 0) + delta));
+            } else if (field === 'mp') {
+                tok.mp = Math.max(0, Math.min(tok.maxMp, (tok.mp || 0) + delta));
+            }
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function updateTokenField(id, field, value) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            tok[field] = value;
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function uploadTokenAvatarFromInspector(id, inputEl) {
+            const file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const dataUrl = ev.target.result;
+                const img = new Image();
+                img.onload = () => {
+                    avatarCache[dataUrl] = img;
+                    tok.avatar = dataUrl;
+                    renderAll();
+                    saveToLocalStorage();
+                    showToast(`เปลี่ยนรูปหมุด "${tok.name}" เรียบร้อยแล้ว`);
+                };
+                img.src = dataUrl;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeTokenAvatar(id) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            tok.avatar = null;
+            renderAll();
+            saveToLocalStorage();
+            showToast('ลบรูปโปรไฟล์หมุดแล้ว');
+        }
+
+        function toggleTokenCondition(id, condId) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            if (!Array.isArray(tok.conditions)) tok.conditions = [];
+            if (tok.conditions.includes(condId)) {
+                tok.conditions = tok.conditions.filter(c => c !== condId);
+            } else {
+                tok.conditions.push(condId);
+            }
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function duplicateToken(id) {
+            const orig = state.tokens.find(t => t.id === id);
+            if (!orig) return;
+            const copy = ensureTokenRpgData(JSON.parse(JSON.stringify(orig)));
+            copy.id = 'tok-' + Date.now();
+            copy.name = orig.name + ' (สำเนา)';
+            copy.x += state.grid.size;
+            state.tokens.push(copy);
+            state.selectedTokenId = copy.id;
+            renderAll();
+            saveToLocalStorage();
+            showToast(`คัดลอกหมุด "${copy.name}" แล้ว`);
+        }
+
+        // ==================== IMPORT CHARACTER FROM JSON (dnd-companion) ====================
+        function calculateDndAcFromStats(rawChar) {
+            // Standard D&D 5e Unarmored AC = 10 + DEX Modifier
+            // (Or 10 + DEX + CON for Barbarian, 10 + DEX + WIS for Monk if class hints match)
+            const st = rawChar.st || rawChar.stats || {};
+            const dex = Number(st.DEX ?? st.dex ?? 10);
+            const con = Number(st.CON ?? st.con ?? 10);
+            const wis = Number(st.WIS ?? st.wis ?? 10);
+
+            const dexMod = Math.floor((dex - 10) / 2);
+            const conMod = Math.floor((con - 10) / 2);
+            const wisMod = Math.floor((wis - 10) / 2);
+
+            const cls = String(rawChar.class || rawChar.charClass || '').toLowerCase();
+            let ac = 10 + dexMod;
+            if (cls.includes('barbarian') || cls.includes('คนเถื่อน')) {
+                ac = 10 + dexMod + conMod;
+            } else if (cls.includes('monk') || cls.includes('นักพรต')) {
+                ac = 10 + dexMod + wisMod;
+            }
+            return Math.max(1, ac);
+        }
+
+        function handleCharacterJsonImport(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    const charList = Array.isArray(data.chars)
+                        ? data.chars
+                        : (Array.isArray(data) ? data : [data]);
+
+                    if (charList.length === 0) {
+                        showToast('ไม่พบข้อมูลตัวละครในไฟล์ JSON');
+                        return;
+                    }
+
+                    const rect = container.getBoundingClientRect();
+                    const centerWorld = screenToWorld(rect.width / 2, rect.height / 2);
+                    let importedCount = 0;
+
+                    charList.forEach((ch, idx) => {
+                        const hpArr = Array.isArray(ch.hp) ? ch.hp : [Number(ch.hp ?? 10), Number(ch.maxHp ?? ch.hp ?? 10)];
+                        const mpArr = Array.isArray(ch.mp) ? ch.mp : [Number(ch.mp ?? 0), Number(ch.maxMp ?? ch.mp ?? 0)];
+
+                        const hp = Number(hpArr[0]) || 0;
+                        const maxHp = Math.max(1, Number(hpArr[1]) || hp || 10);
+                        const mp = Number(mpArr[0]) || 0;
+                        const maxMp = Math.max(0, Number(mpArr[1]) || mp || 0);
+                        const level = Math.max(1, Number(ch.lv ?? ch.level ?? 1));
+                        const computedAc = ch.ac ? Number(ch.ac) : calculateDndAcFromStats(ch);
+                        const charName = (ch.name && String(ch.name).trim())
+                            ? String(ch.name).trim()
+                            : `ตัวละคร Lv.${level}`;
+
+                        // Map magic (mg) & abilities (ab) into lightweight quick skills
+                        const skills = [];
+                        if (Array.isArray(ch.mg)) {
+                            ch.mg.forEach(m => {
+                                if (m && m.a) {
+                                    skills.push({
+                                        id: 'sk-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                                        name: m.a,
+                                        mpCost: Number(m.c) || 0,
+                                        desc: m.b || ''
+                                    });
+                                }
+                            });
+                        }
+                        if (Array.isArray(ch.ab)) {
+                            ch.ab.forEach(a => {
+                                if (a && a.a) {
+                                    skills.push({
+                                        id: 'ab-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                                        name: a.a,
+                                        mpCost: 0,
+                                        desc: a.b || ''
+                                    });
+                                }
+                            });
+                        }
+
+                        // Map bag items if present
+                        const inventory = Array.isArray(ch.bag)
+                            ? ch.bag.filter(it => it && (it.a || it.name)).map(it => ({
+                                id: 'it-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+                                name: it.a || it.name,
+                                qty: Number(it.q ?? it.qty ?? 1) || 1,
+                                healHp: Number(it.healHp ?? 0) || 0,
+                                healMp: Number(it.healMp ?? 0) || 0
+                            }))
+                            : [];
+
+                        const avatarSrc = (ch.img && String(ch.img).trim()) ? String(ch.img).trim() : null;
+                        if (avatarSrc) {
+                            const im = new Image();
+                            im.src = avatarSrc;
+                            avatarCache[avatarSrc] = im;
+                        }
+
+                        const snapped = snapPositionToGrid(
+                            centerWorld.x + idx * (state.grid.size || 64),
+                            centerWorld.y,
+                            1
+                        );
+
+                        const newTok = ensureTokenRpgData({
+                            id: 'tok-' + Date.now() + '-' + idx,
+                            name: charName,
+                            faction: 'player',
+                            charClass: ch.class || ch.charClass || '',
+                            level,
+                            baseAc: computedAc,
+                            ac: computedAc,
+                            hp,
+                            maxHp,
+                            mp,
+                            maxMp,
+                            size: 1,
+                            color: '#10b981',
+                            emoji: avatarSrc ? '' : '⚔️',
+                            avatar: avatarSrc,
+                            x: snapped.x,
+                            y: snapped.y,
+                            conditions: [],
+                            skills,
+                            inventory
+                        });
+
+                        state.tokens.push(newTok);
+                        state.selectedTokenId = newTok.id;
+                        importedCount++;
+                    });
+
+                    renderAll();
+                    saveToLocalStorage();
+                    showToast(`นำเข้าตัวละคร ${importedCount} ตัวเรียบร้อย (คำนวณ AC ตามกฎ D&D แล้ว)`);
+                } catch (err) {
+                    showToast('ไม่สามารถอ่านไฟล์ตัวละคร JSON ได้');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        document.getElementById('charImportInput').addEventListener('change', (e) => {
+            handleCharacterJsonImport(e.target.files[0]);
+            e.target.value = '';
+        });
+
+        document.getElementById('charImportSidebarInput').addEventListener('change', (e) => {
+            handleCharacterJsonImport(e.target.files[0]);
+            e.target.value = '';
+        });
+
+        function deleteToken(id) {
+            state.tokens = state.tokens.filter(t => t.id !== id);
+            if (state.selectedTokenId === id) state.selectedTokenId = null;
+            renderAll();
+            saveToLocalStorage();
+            showToast('ลบหมุดออกจากแผนที่แล้ว');
+        }
+
+        // Quick Add Skill & Bag Item directly in Inspector
+        function quickAddInspectorSkill(id) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            const nameEl = document.getElementById('inspQuickSkillName');
+            const costEl = document.getElementById('inspQuickSkillCost');
+            const name = nameEl.value.trim();
+            if (!name) return;
+            const mpCost = parseInt(costEl.value) || 0;
+            tok.skills.push({ id: 'sk-' + Date.now(), name, mpCost, desc: '' });
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function useTokenSkill(id, idx) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok || !tok.skills[idx]) return;
+            const sk = tok.skills[idx];
+            if ((sk.mpCost || 0) > 0) {
+                if ((tok.mp || 0) < sk.mpCost) {
+                    showToast(`MP ไม่พอสำหรับใช้ ${sk.name}!`);
+                    return;
+                }
+                tok.mp -= sk.mpCost;
+            }
+            renderAll();
+            saveToLocalStorage();
+            showToast(`${tok.name} ใช้สกิล "${sk.name}"${sk.mpCost ? ` (-${sk.mpCost} MP)` : ''}`);
+        }
+
+        function removeTokenSkill(id, idx) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            tok.skills.splice(idx, 1);
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function quickAddInspectorItem(id) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            const name = document.getElementById('inspQuickItemName').value.trim();
+            if (!name) return;
+            const qty = parseInt(document.getElementById('inspQuickItemQty').value) || 1;
+            const healHp = parseInt(document.getElementById('inspQuickItemHp').value) || 0;
+            const healMp = parseInt(document.getElementById('inspQuickItemMp').value) || 0;
+            tok.inventory.push({ id: 'it-' + Date.now(), name, qty, healHp, healMp });
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        function useTokenBagItem(id, idx) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok || !tok.inventory[idx]) return;
+            const item = tok.inventory[idx];
+            if (item.healHp) tok.hp = Math.min(tok.maxHp, (tok.hp || 0) + Number(item.healHp));
+            if (item.healMp) tok.mp = Math.min(tok.maxMp, (tok.mp || 0) + Number(item.healMp));
+            item.qty = (item.qty || 1) - 1;
+            if (item.qty <= 0) tok.inventory.splice(idx, 1);
+            renderAll();
+            saveToLocalStorage();
+            showToast(`${tok.name} ใช้ "${item.name}"`);
+        }
+
+        function removeTokenBagItem(id, idx) {
+            const tok = state.tokens.find(t => t.id === id);
+            if (!tok) return;
+            tok.inventory.splice(idx, 1);
+            renderAll();
+            saveToLocalStorage();
+        }
+
+        // ==================== RENDER UI (ROSTER & INSPECTOR) ====================
+        function toggleRosterFaction(faction, isVisible) {
+            rosterFilters[faction] = isVisible;
+            renderRosterList();
+        }
+
+        function renderAll() {
+            renderRosterList();
+            renderInspector();
+        }
+
+        function renderRosterList() {
+            const list = document.getElementById('tokenRosterList');
+            const visibleTokens = state.tokens.filter(tok => {
+                const f = tok.faction || 'player';
+                return rosterFilters[f] !== false;
+            });
+            document.getElementById('rosterCount').textContent = `${visibleTokens.length}/${state.tokens.length}`;
+
+            if (state.tokens.length === 0) {
+                list.innerHTML = `<div class="text-center py-6 text-xs text-slate-500 border border-dashed border-vtt-border rounded-xl">ยังไม่มีหมุดบนแผนที่</div>`;
+                return;
+            }
+
+            if (visibleTokens.length === 0) {
+                list.innerHTML = `<div class="text-center py-5 text-xs text-slate-500 border border-dashed border-vtt-border rounded-xl">ซ่อนรายชื่อหมุดอยู่ (ติ๊กเลือกฝ่ายด้านบนเพื่อแสดง)</div>`;
+                return;
+            }
+
+            list.innerHTML = visibleTokens.map(tok => {
+                const isSel = tok.id === state.selectedTokenId;
+                return `
+                    <div onclick="selectToken('${tok.id}')" class="cursor-pointer flex items-center justify-between p-2 rounded-xl border transition ${isSel ? 'bg-amber-500/15 border-amber-500' : 'bg-vtt-card/70 border-vtt-border hover:border-slate-600'}">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-3 h-3 rounded-full shrink-0" style="background:${tok.color}"></span>
+                            <div class="truncate">
+                                <p class="text-xs font-semibold text-white truncate">${tok.emoji ? tok.emoji + ' ' : ''}${escapeHtml(tok.name)}</p>
+                                <p class="text-[10px] text-slate-400">Lv.${tok.level || 1} ${escapeHtml(tok.charClass || '')} • AC ${tok.ac}</p>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0 text-[10px] font-bold">
+                            <div class="text-rose-400">HP ${tok.hp}/${tok.maxHp}</div>
+                            ${tok.maxMp > 0 ? `<div class="text-sky-400">MP ${tok.mp}/${tok.maxMp}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderInspector() {
+            const sidebar = document.getElementById('rightSidebar');
+            const body = document.getElementById('inspectorContent');
+            const tok = getSelectedToken();
+
+            if (!tok) {
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('flex');
+                return;
+            }
+
+            ensureTokenRpgData(tok);
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('flex');
+
+            const hpPct = Math.max(0, Math.min(100, Math.round((tok.hp / Math.max(1, tok.maxHp)) * 100)));
+            const mpPct = Math.max(0, Math.min(100, Math.round((tok.mp / Math.max(1, tok.maxMp)) * 100)));
+
+            body.innerHTML = `
+                <!-- Character Identity, Avatar Upload & AC -->
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3 space-y-2.5">
+                    <div class="flex items-center gap-2.5">
+                        <label class="relative group cursor-pointer w-12 h-12 rounded-full bg-vtt-bg border-2 flex items-center justify-center font-bold text-base shrink-0 overflow-hidden" style="border-color:${tok.color}" title="คลิกเพื่อเปลี่ยนรูปหมุด">
+                            ${tok.avatar ? `<img src="${tok.avatar}" class="w-full h-full object-cover">` : (tok.emoji || escapeHtml((tok.name || '?').slice(0, 2)))}
+                            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-[10px] text-white font-semibold transition">เปลี่ยนรูป</div>
+                            <input type="file" accept="image/*" onchange="uploadTokenAvatarFromInspector('${tok.id}', this)" class="hidden">
+                        </label>
+                        <div class="flex-1 min-w-0 space-y-1">
+                            <input type="text" value="${escapeHtml(tok.name)}" onchange="updateTokenField('${tok.id}', 'name', this.value)" class="w-full bg-transparent font-bold text-sm text-white border-b border-transparent focus:border-amber-500 focus:outline-none">
+                            <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
+                                <span>Lv.</span>
+                                <input type="number" min="1" max="20" value="${tok.level || 1}" onchange="updateTokenField('${tok.id}', 'level', Math.max(1, parseInt(this.value)||1))" class="w-10 bg-vtt-bg border border-vtt-border rounded px-1 py-0.5 text-center text-amber-300 font-bold">
+                                <span>AC</span>
+                                <input type="number" min="1" max="40" value="${tok.ac || 12}" onchange="updateTokenField('${tok.id}', 'ac', Math.max(1, parseInt(this.value)||12))" class="w-10 bg-vtt-bg border border-vtt-border rounded px-1 py-0.5 text-center text-amber-400 font-bold">
+                                <input type="text" value="${escapeHtml(tok.charClass || '')}" placeholder="คลาส..." onchange="updateTokenField('${tok.id}', 'charClass', this.value)" class="flex-1 min-w-0 bg-vtt-bg border border-vtt-border rounded px-1.5 py-0.5 text-slate-200">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="cursor-pointer flex-1 py-1.5 px-2.5 rounded-xl bg-vtt-bg hover:bg-slate-800 border border-dashed border-amber-500/50 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                            <span>🖼️ ใส่รูป / เปลี่ยนรูปหมุด</span>
+                            <input type="file" accept="image/*" onchange="uploadTokenAvatarFromInspector('${tok.id}', this)" class="hidden">
+                        </label>
+                        ${tok.avatar ? `<button onclick="removeTokenAvatar('${tok.id}')" class="py-1.5 px-2.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-rose-300 text-xs" title="ลบรูปหมุด">ลบรูป</button>` : ''}
+                    </div>
+                </div>
+
+                <!-- HP Controller -->
+                <div class="bg-vtt-card border border-rose-950/70 rounded-2xl p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-rose-400">❤️ พลังชีวิต (HP)</span>
+                        <div class="flex items-center gap-1 text-xs">
+                            <input type="number" value="${tok.hp}" onchange="updateTokenField('${tok.id}', 'hp', parseInt(this.value)||0)" class="w-12 bg-vtt-bg border border-vtt-border rounded px-1.5 py-0.5 text-center font-bold text-white">
+                            <span class="text-slate-500">/</span>
+                            <input type="number" value="${tok.maxHp}" onchange="updateTokenField('${tok.id}', 'maxHp', Math.max(1, parseInt(this.value)||1))" class="w-12 bg-vtt-bg border border-vtt-border rounded px-1.5 py-0.5 text-center text-slate-300">
+                        </div>
+                    </div>
+                    <div class="w-full h-2.5 bg-vtt-bg rounded-full overflow-hidden">
+                        <div class="h-full transition-all ${hpPct > 50 ? 'bg-emerald-500' : (hpPct > 25 ? 'bg-amber-500' : 'bg-rose-500')}" style="width:${hpPct}%"></div>
+                    </div>
+                    <div class="grid grid-cols-6 gap-1 pt-0.5">
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', -10)" class="py-1 rounded-lg bg-rose-950 hover:bg-rose-900 text-rose-300 text-[11px] font-bold">-10</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', -5)" class="py-1 rounded-lg bg-rose-950 hover:bg-rose-900 text-rose-300 text-[11px] font-bold">-5</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', -1)" class="py-1 rounded-lg bg-rose-950 hover:bg-rose-900 text-rose-300 text-[11px] font-bold">-1</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', 1)" class="py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 text-[11px] font-bold">+1</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', 5)" class="py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 text-[11px] font-bold">+5</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'hp', 10)" class="py-1 rounded-lg bg-emerald-950 hover:bg-emerald-900 text-emerald-300 text-[11px] font-bold">+10</button>
+                    </div>
+                </div>
+
+                <!-- MP Controller -->
+                <div class="bg-vtt-card border border-sky-950/70 rounded-2xl p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-sky-400">💧 มานา / ช่องเวท (MP)</span>
+                        <div class="flex items-center gap-1 text-xs">
+                            <input type="number" value="${tok.mp}" onchange="updateTokenField('${tok.id}', 'mp', parseInt(this.value)||0)" class="w-12 bg-vtt-bg border border-vtt-border rounded px-1.5 py-0.5 text-center font-bold text-white">
+                            <span class="text-slate-500">/</span>
+                            <input type="number" value="${tok.maxMp}" onchange="updateTokenField('${tok.id}', 'maxMp', Math.max(0, parseInt(this.value)||0))" class="w-12 bg-vtt-bg border border-vtt-border rounded px-1.5 py-0.5 text-center text-slate-300">
+                        </div>
+                    </div>
+                    <div class="w-full h-2 bg-vtt-bg rounded-full overflow-hidden">
+                        <div class="h-full bg-sky-400 transition-all" style="width:${mpPct}%"></div>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 pt-0.5">
+                        <button onclick="adjustTokenPool('${tok.id}', 'mp', -5)" class="py-1 rounded-lg bg-sky-950 hover:bg-sky-900 text-sky-300 text-[11px] font-bold">-5</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'mp', -1)" class="py-1 rounded-lg bg-sky-950 hover:bg-sky-900 text-sky-300 text-[11px] font-bold">-1</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'mp', 1)" class="py-1 rounded-lg bg-indigo-950 hover:bg-indigo-900 text-indigo-300 text-[11px] font-bold">+1</button>
+                        <button onclick="adjustTokenPool('${tok.id}', 'mp', 5)" class="py-1 rounded-lg bg-indigo-950 hover:bg-indigo-900 text-indigo-300 text-[11px] font-bold">+5</button>
+                    </div>
+                </div>
+
+                <!-- Special Status / Conditions -->
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3 space-y-2">
+                    <h4 class="text-xs font-bold text-slate-300">สถานะพิเศษ (Conditions)</h4>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        ${CONDITIONS.map(c => {
+                            const active = (tok.conditions || []).includes(c.id);
+                            return `
+                                <button onclick="toggleTokenCondition('${tok.id}', '${c.id}')" class="flex items-center gap-1.5 px-2 py-1.5 rounded-xl text-[11px] border text-left transition ${active ? 'bg-amber-500/20 border-amber-500 text-white font-semibold' : 'bg-vtt-bg border-vtt-border text-slate-400 hover:text-slate-200'}">
+                                    <span>${c.icon}</span>
+                                    <span class="truncate">${c.label}</span>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
+                <!-- Quick Skills & Abilities -->
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-purple-300">✨ สกิลย่อ / ความสามารถ</h4>
+                    </div>
+                    <div class="flex gap-1">
+                        <input type="text" id="inspQuickSkillName" placeholder="ชื่อสกิล..." class="flex-1 bg-vtt-bg border border-vtt-border rounded-lg px-2 py-1 text-[11px] text-white">
+                        <input type="number" id="inspQuickSkillCost" placeholder="MP" class="w-12 bg-vtt-bg border border-vtt-border rounded-lg px-1.5 py-1 text-[11px] text-center text-sky-300">
+                        <button onclick="quickAddInspectorSkill('${tok.id}')" class="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold">+ เพิ่ม</button>
+                    </div>
+                    <div class="space-y-1 max-h-32 overflow-y-auto">
+                        ${(tok.skills || []).map((sk, idx) => `
+                            <div class="flex items-center justify-between bg-vtt-bg px-2 py-1.5 rounded-lg border border-vtt-border text-[11px]">
+                                <span class="text-slate-200 truncate">${escapeHtml(sk.name)} ${sk.mpCost ? `<span class="text-sky-400">(${sk.mpCost} MP)</span>` : ''}</span>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button onclick="useTokenSkill('${tok.id}', ${idx})" class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold">ใช้</button>
+                                    <button onclick="removeTokenSkill('${tok.id}', ${idx})" class="text-slate-500 hover:text-rose-400 px-1">✕</button>
+                                </div>
+                            </div>
+                        `).join('') || '<p class="text-[10px] text-slate-500 text-center py-1">ยังไม่มีสกิลย่อ</p>'}
+                    </div>
+                </div>
+
+                <!-- Quick Bag / Inventory -->
+                <div class="bg-vtt-card border border-vtt-border rounded-2xl p-3 space-y-2">
+                    <h4 class="text-xs font-bold text-emerald-300">🎒 กระเป๋าไอเทม (Bag)</h4>
+                    <div class="grid grid-cols-12 gap-1">
+                        <input type="text" id="inspQuickItemName" placeholder="ชื่อไอเทม..." class="col-span-5 bg-vtt-bg border border-vtt-border rounded-lg px-2 py-1 text-[11px] text-white">
+                        <input type="number" id="inspQuickItemQty" value="1" min="1" title="จำนวน" class="col-span-2 bg-vtt-bg border border-vtt-border rounded-lg px-1 py-1 text-[11px] text-center text-white">
+                        <input type="number" id="inspQuickItemHp" placeholder="+HP" title="ฟื้นฟู HP" class="col-span-2 bg-vtt-bg border border-vtt-border rounded-lg px-1 py-1 text-[11px] text-center text-rose-300">
+                        <input type="number" id="inspQuickItemMp" placeholder="+MP" title="ฟื้นฟู MP" class="col-span-2 bg-vtt-bg border border-vtt-border rounded-lg px-1 py-1 text-[11px] text-center text-sky-300">
+                        <button onclick="quickAddInspectorItem('${tok.id}')" class="col-span-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">+</button>
+                    </div>
+                    <div class="space-y-1 max-h-32 overflow-y-auto">
+                        ${(tok.inventory || []).map((it, idx) => `
+                            <div class="flex items-center justify-between bg-vtt-bg px-2 py-1.5 rounded-lg border border-vtt-border text-[11px]">
+                                <span class="text-slate-200 truncate">${escapeHtml(it.name)} <span class="text-amber-400">x${it.qty || 1}</span></span>
+                                <div class="flex items-center gap-1 shrink-0">
+                                    <button onclick="useTokenBagItem('${tok.id}', ${idx})" class="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-semibold">ใช้</button>
+                                    <button onclick="removeTokenBagItem('${tok.id}', ${idx})" class="text-slate-500 hover:text-rose-400 px-1">✕</button>
+                                </div>
+                            </div>
+                        `).join('') || '<p class="text-[10px] text-slate-500 text-center py-1">กระเป๋าว่างเปล่า</p>'}
+                    </div>
+                </div>
+
+                <!-- Token Actions -->
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="duplicateToken('${tok.id}')" class="py-2 rounded-xl bg-vtt-card hover:bg-slate-800 border border-vtt-border text-xs text-slate-200 font-medium">📋 คัดลอกหมุด</button>
+                    <button onclick="deleteToken('${tok.id}')" class="py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/60 text-xs text-rose-300 font-medium">🗑️ ลบหมุด</button>
+                </div>
+            `;
+        }
+
+        // ==================== GRID CONTROLS & MAP UPLOAD ====================
+        function updateGridConfig() {
+            state.grid.visible = document.getElementById('gridVisibleCheck').checked;
+            state.grid.snap = document.getElementById('gridSnapCheck').checked;
+            state.grid.showAc = document.getElementById('gridShowAcCheck').checked;
+            state.grid.size = parseInt(document.getElementById('gridSizeRange').value) || 64;
+            state.grid.opacity = (parseInt(document.getElementById('gridOpacityRange').value) || 35) / 100;
+            state.grid.offsetX = parseInt(document.getElementById('gridOffsetXRange').value) || 0;
+            state.grid.offsetY = parseInt(document.getElementById('gridOffsetYRange').value) || 0;
+
+            document.getElementById('gridSizeVal').textContent = state.grid.size + ' px';
+            document.getElementById('gridOpacityVal').textContent = Math.round(state.grid.opacity * 100) + '%';
+            document.getElementById('gridOffsetXVal').textContent = state.grid.offsetX + ' px';
+            document.getElementById('gridOffsetYVal').textContent = state.grid.offsetY + ' px';
+            saveToLocalStorage();
+        }
+
+        function setGridColor(hex) {
+            state.grid.color = hex;
+            saveToLocalStorage();
+        }
+
+        function resetGridOffset() {
+            document.getElementById('gridOffsetXRange').value = 0;
+            document.getElementById('gridOffsetYRange').value = 0;
+            updateGridConfig();
+        }
+
+        document.getElementById('mapUploadInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                applyMapImage(ev.target.result);
+                showToast('อัปโหลดรูปแผนที่เรียบร้อยแล้ว!');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function applyMapImage(dataUrl) {
+            state.mapImageSrc = dataUrl;
+            state.isBlankMap = false;
+            const img = new Image();
+            img.onload = () => {
+                mapImgObj = img;
+                state.mapWidth = img.naturalWidth || 1600;
+                state.mapHeight = img.naturalHeight || 1100;
+                fitMapToScreen();
+                saveToLocalStorage();
+            };
+            img.src = dataUrl;
+        }
+
+        function loadSampleDungeonMap() {
+            state.mapImageSrc = null;
+            state.isBlankMap = false;
+            mapImgObj = null;
+            state.mapWidth = 1600;
+            state.mapHeight = 1100;
+            const presetSel = document.getElementById('presetSceneSelect');
+            if (presetSel) presetSel.value = 'dungeon';
+            fitMapToScreen();
+            showToast('โหลดฉากวิหารโบราณตัวอย่างแล้ว');
+        }
+
+        function removeCurrentMap() {
+            state.mapImageSrc = null;
+            state.isBlankMap = true;
+            mapImgObj = null;
+            state.mapWidth = 1600;
+            state.mapHeight = 1100;
+            const presetSel = document.getElementById('presetSceneSelect');
+            if (presetSel) presetSel.value = '';
+            const mapInput = document.getElementById('mapUploadInput');
+            if (mapInput) mapInput.value = '';
+            fitMapToScreen();
+            saveToLocalStorage();
+            showToast('ลบรูปแผนที่ปัจจุบันออกแล้ว (เหลือกระดานตารางเปล่า)');
+        }
+
+        function resetEntireBoard() {
+            state.mapImageSrc = null;
+            state.isBlankMap = true;
+            mapImgObj = null;
+            state.mapWidth = 1600;
+            state.mapHeight = 1100;
+            state.tokens = [];
+            state.selectedTokenId = null;
+            state.fog = { cells: {}, dmDarkOpacity: 1.0 };
+            state.aoeTemplates = [];
+            selectedAoeId = null;
+            updateSelectedAoeBar();
+            const presetSel = document.getElementById('presetSceneSelect');
+            if (presetSel) presetSel.value = '';
+            const mapInput = document.getElementById('mapUploadInput');
+            if (mapInput) mapInput.value = '';
+            fitMapToScreen();
+            renderAll();
+            saveToLocalStorage();
+            showToast('ล้างรูปแผนที่ หมุด เงา และเอฟเฟกต์ทั้งหมดเรียบร้อยแล้ว');
+        }
+
+        // ==================== BUILT-IN PRESET SCENES (TOWN / GUILD / SHOP) ====================
+        function generatePresetMapDataUrl(sceneKey) {
+            const off = document.createElement('canvas');
+            const W = 1600, H = 1152, GS = 64;
+            off.width = W;
+            off.height = H;
+            const c = off.getContext('2d');
+
+            const rand = (seed) => {
+                let s = seed % 2147483647;
+                return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+            };
+
+            const drawTree = (x, y, r, seed) => {
+                const rnd = rand(seed);
+                c.save();
+                c.fillStyle = 'rgba(0,0,0,0.32)';
+                c.beginPath(); c.arc(x + 6, y + 8, r, 0, Math.PI * 2); c.fill();
+                ['#2d4c2b', '#3a6136', '#4a7844'].forEach((col, i) => {
+                    c.fillStyle = col;
+                    c.beginPath();
+                    c.arc(x + (rnd() - 0.5) * 6, y + (rnd() - 0.5) * 6, r * (1 - i * 0.18), 0, Math.PI * 2);
+                    c.fill();
+                });
+                c.restore();
+            };
+
+            const drawRoof = (x, y, w, h, roofCol, ridgeCol, label, sub = '') => {
+                c.save();
+                c.fillStyle = 'rgba(0,0,0,0.42)';
+                c.beginPath(); c.roundRect(x + 8, y + 10, w, h, 8); c.fill();
+                c.fillStyle = roofCol;
+                c.beginPath(); c.roundRect(x, y, w, h, 8); c.fill();
+                c.strokeStyle = 'rgba(0,0,0,0.18)'; c.lineWidth = 2;
+                for (let sy = y + 14; sy < y + h - 8; sy += 14) {
+                    c.beginPath(); c.moveTo(x + 6, sy); c.lineTo(x + w - 6, sy); c.stroke();
+                }
+                c.strokeStyle = ridgeCol; c.lineWidth = 5;
+                c.beginPath();
+                if (w >= h) { c.moveTo(x + 14, y + h / 2); c.lineTo(x + w - 14, y + h / 2); }
+                else { c.moveTo(x + w / 2, y + 14); c.lineTo(x + w / 2, y + h - 14); }
+                c.stroke();
+                c.strokeStyle = '#1e1b18'; c.lineWidth = 3;
+                c.beginPath(); c.roundRect(x, y, w, h, 8); c.stroke();
+                if (label) {
+                    c.font = 'bold 16px Prompt, sans-serif';
+                    const pw = c.measureText(label).width + 20;
+                    const ph = sub ? 40 : 26;
+                    const px = x + w / 2 - pw / 2, py = y + h / 2 - ph / 2;
+                    c.fillStyle = 'rgba(15,23,42,0.85)';
+                    c.beginPath(); c.roundRect(px, py, pw, ph, 6); c.fill();
+                    c.strokeStyle = 'rgba(245,158,11,0.5)'; c.lineWidth = 1.5; c.stroke();
+                    c.fillStyle = '#fef3c7'; c.textAlign = 'center'; c.textBaseline = 'middle';
+                    c.fillText(label, x + w / 2, sub ? py + 14 : py + ph / 2);
+                    if (sub) {
+                        c.font = '11px Prompt, sans-serif'; c.fillStyle = '#94a3b8';
+                        c.fillText(sub, x + w / 2, py + 29);
+                    }
+                }
+                c.restore();
+            };
+
+            if (sceneKey === 'town') {
+                const rnd = rand(42);
+                c.fillStyle = '#3c4c34'; c.fillRect(0, 0, W, H);
+                for (let i = 0; i < 160; i++) {
+                    c.fillStyle = rnd() > 0.5 ? 'rgba(74,94,58,0.35)' : 'rgba(42,54,36,0.35)';
+                    c.beginPath(); c.arc(rnd() * W, rnd() * H, 18 + rnd() * 45, 0, Math.PI * 2); c.fill();
+                }
+                c.fillStyle = '#5c5346'; c.fillRect(64, 64, W - 128, H - 128);
+                c.fillStyle = '#78716c';
+                c.fillRect(544, 340, 192, 812);
+                c.fillRect(480, 320, 560, 128);
+                c.fillRect(110, 624, 1120, 64);
+                c.fillRect(110, 864, 1360, 160);
+                c.fillRect(1180, 448, 280, 440);
+
+                // Perimeter Walls & South Gate (544..736)
+                const wt = 28, wx = 48, wy = 48, ww = W - 96, wh = H - 96;
+                c.fillStyle = '#475569';
+                c.fillRect(wx, wy, ww, wt);
+                c.fillRect(wx, wy, wt, wh);
+                c.fillRect(wx + ww - wt, wy, wt, wh);
+                c.fillRect(wx, wy + wh - wt, 544 - wx, wt);
+                c.fillRect(736, wy + wh - wt, (wx + ww) - 736, wt);
+
+                [[wx + 14, wy + 14], [wx + ww - 14, wy + 14], [wx + 14, wy + wh - 14], [wx + ww - 14, wy + wh - 14], [530, wy + wh - 14], [750, wy + wh - 14]].forEach(([tx, ty]) => {
+                    c.fillStyle = '#334155'; c.beginPath(); c.arc(tx, ty, 26, 0, Math.PI * 2); c.fill();
+                    c.fillStyle = '#92400e'; c.beginPath(); c.arc(tx, ty, 15, 0, Math.PI * 2); c.fill();
+                });
+
+                drawRoof(520, 128, 192, 176, '#9a3412', '#fdba74', 'ร้านอาวุธ / ชุดเกราะ', 'Weapon & Armor');
+
+                // Town Hall
+                c.fillStyle = '#1d4ed8'; c.beginPath(); c.arc(880, 216, 94, 0, Math.PI * 2); c.fill();
+                c.strokeStyle = '#93c5fd'; c.lineWidth = 4; c.stroke();
+                c.fillStyle = '#1e3a8a'; c.beginPath(); c.arc(880, 216, 52, 0, Math.PI * 2); c.fill();
+                c.fillStyle = 'rgba(15,23,42,0.88)'; c.beginPath(); c.roundRect(810, 200, 140, 32, 6); c.fill();
+                c.fillStyle = '#fef3c7'; c.font = 'bold 15px Prompt, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+                c.fillText('ที่ว่าการเมือง', 880, 216);
+
+                // Row Houses
+                drawRoof(112, 432, 344, 168, '#4d7c0f', '#bef264', 'บ้านแถว (ตะวันตกบน)');
+                drawRoof(112, 688, 344, 168, '#3f6212', '#bef264', 'บ้านแถว (ตะวันตกล่าง)');
+                drawRoof(768, 464, 352, 152, '#4d7c0f', '#bef264', 'บ้านแถว (ตะวันออกบน)');
+                drawRoof(768, 696, 352, 160, '#3f6212', '#bef264', 'บ้านแถว (ตะวันออกล่าง)');
+
+                // Market Stalls
+                [532, 632, 732].forEach((sy, idx) => {
+                    const cols = [['#dc2626', '#d97706'], ['#059669', '#7c3aed'], ['#2563eb', '#ea580c']][idx];
+                    c.fillStyle = cols[0]; c.fillRect(584, sy, 48, 64);
+                    c.fillStyle = cols[1]; c.fillRect(648, sy, 48, 64);
+                });
+                c.fillStyle = 'rgba(15,23,42,0.88)'; c.beginPath(); c.roundRect(600, 808, 80, 26, 6); c.fill();
+                c.fillStyle = '#38bdf8'; c.font = 'bold 14px Prompt, sans-serif'; c.fillText('ตลาดกลาง', 640, 821);
+
+                // Guild Hall
+                c.fillStyle = '#0284c7'; c.beginPath(); c.arc(410, 938, 60, 0, Math.PI * 2); c.fill();
+                c.strokeStyle = '#fbbf24'; c.lineWidth = 3.5; c.stroke();
+                c.fillStyle = 'rgba(15,23,42,0.9)'; c.beginPath(); c.roundRect(365, 924, 90, 28, 6); c.fill();
+                c.fillStyle = '#fbbf24'; c.font = 'bold 14px Prompt, sans-serif'; c.fillText('กิลด์', 410, 938);
+
+                // 5 Sewer Grates
+                [[176, 208], [1408, 208], [504, 624], [144, 1008], [1424, 1008]].forEach(([sx, sy]) => {
+                    c.fillStyle = '#334155'; c.beginPath(); c.arc(sx, sy, 22, 0, Math.PI * 2); c.fill();
+                    c.fillStyle = '#090d16'; c.beginPath(); c.arc(sx, sy, 16, 0, Math.PI * 2); c.fill();
+                    c.fillStyle = '#cbd5e1'; c.font = '600 10px Prompt, sans-serif'; c.fillText('ท่อระบายน้ำ', sx, sy + 32);
+                });
+
+                [[240, 320, 32], [1120, 160, 34], [1240, 280, 36], [1420, 760, 34]].forEach(([tx, ty, tr], i) => drawTree(tx, ty, tr, i + 10));
+            } else if (sceneKey === 'guild') {
+                c.fillStyle = '#2d3b27'; c.fillRect(0, 0, W, H);
+                const gx = 192, gy = 128, gw = 1216, gh = 896;
+                c.fillStyle = '#5c3a21'; c.fillRect(gx, gy, gw, gh);
+                c.strokeStyle = 'rgba(28,16,8,0.45)'; c.lineWidth = 2;
+                for (let py = gy; py <= gy + gh; py += 32) { c.beginPath(); c.moveTo(gx, py); c.lineTo(gx + gw, py); c.stroke(); }
+                c.fillStyle = '#7f1d1d'; c.fillRect(704, 416, 192, 608);
+                c.strokeStyle = '#f59e0b'; c.lineWidth = 3; c.strokeRect(708, 416, 184, 604);
+
+                // Reception Counter
+                c.fillStyle = '#78350f'; c.fillRect(576, 384, 448, 52);
+                c.strokeStyle = '#fbbf24'; c.lineWidth = 3; c.strokeRect(576, 384, 448, 52);
+                c.fillStyle = '#fef3c7'; c.font = 'bold 14px Prompt, sans-serif'; c.textAlign = 'center';
+                c.fillText('เคาน์เตอร์ต้อนรับ & ส่งเควส', 800, 412);
+
+                // Quest Board (Left)
+                c.fillStyle = 'rgba(245,158,11,0.14)'; c.strokeStyle = '#f59e0b'; c.lineWidth = 2;
+                c.beginPath(); c.roundRect(224, 320, 224, 384, 12); c.fill(); c.stroke();
+                c.fillStyle = '#451a03'; c.fillRect(206, 352, 28, 320);
+                c.fillStyle = 'rgba(15,23,42,0.92)'; c.beginPath(); c.roundRect(248, 488, 180, 46, 8); c.fill();
+                c.fillStyle = '#fbbf24'; c.font = 'bold 14px Prompt, sans-serif'; c.fillText('📋 ป้ายประกาศเควส', 338, 505);
+                c.fillStyle = '#cbd5e1'; c.font = '11px Prompt, sans-serif'; c.fillText('(จุดเลือกภารกิจนักผจญภัย)', 338, 523);
+
+                // Tables
+                [[1120, 320], [1120, 672], [1120, 864], [384, 832]].forEach(([tx, ty]) => {
+                    c.fillStyle = '#92400e'; c.beginPath(); c.arc(tx, ty, 46, 0, Math.PI * 2); c.fill();
+                    c.strokeStyle = '#d97706'; c.lineWidth = 3; c.stroke();
+                });
+
+                // Walls
+                c.fillStyle = '#1e293b';
+                c.fillRect(gx - 16, gy - 16, gw + 32, 16);
+                c.fillRect(gx - 16, gy - 16, 16, gh + 32);
+                c.fillRect(gx + gw, gy - 16, 16, gh + 32);
+                c.fillRect(gx - 16, gy + gh, 704 - (gx - 16), 16);
+                c.fillRect(896, gy + gh, (gx + gw + 16) - 896, 16);
+            } else if (sceneKey === 'shop') {
+                c.fillStyle = '#3f3b36'; c.fillRect(0, 0, W, H);
+                const sx = 256, sy = 160, sw = 1088, sh = 832;
+                c.fillStyle = '#334155'; c.fillRect(sx, sy, sw, sh);
+                c.fillStyle = '#1e293b'; c.fillRect(sx, sy, sw, 224);
+
+                // Forge
+                c.fillStyle = '#ea580c'; c.beginPath(); c.arc(400, 256, 36, 0, Math.PI * 2); c.fill();
+                c.fillStyle = '#fef08a'; c.beginPath(); c.arc(400, 256, 18, 0, Math.PI * 2); c.fill();
+                c.fillStyle = '#fdba74'; c.font = 'bold 12px Prompt, sans-serif'; c.textAlign = 'center';
+                c.fillText('เตาหลอมตีเหล็ก', 400, 312);
+
+                // Shop Counter
+                c.fillStyle = '#78350f'; c.fillRect(576, 448, 448, 56);
+                c.strokeStyle = '#f59e0b'; c.lineWidth = 3; c.strokeRect(576, 448, 448, 56);
+                c.fillStyle = '#fef3c7'; c.font = 'bold 14px Prompt, sans-serif';
+                c.fillText('เคาน์เตอร์ซื้อ-ขายอาวุธและชุดเกราะ', 800, 480);
+
+                // Weapon & Armor Racks
+                [[304, 480, 'ชั้นดาบสั้น & มีดสั้น'], [304, 640, 'ชั้นหอก & ขวาน'], [304, 800, 'ชั้นธนูสั้น & หน้าไม้']].forEach(([rx, ry, lbl]) => {
+                    c.fillStyle = '#7c2d12'; c.fillRect(rx, ry, 176, 48);
+                    c.fillStyle = '#fed7aa'; c.font = '600 12px Prompt, sans-serif'; c.fillText(lbl, rx + 88, ry + 64);
+                });
+                [[1120, 480, 'หุ่นโชว์เกราะหนัง'], [1120, 640, 'หุ่นโชว์เกราะโซ่'], [1120, 800, 'ชั้นวางโล่ไม้ & โล่เหล็ก']].forEach(([rx, ry, lbl]) => {
+                    c.fillStyle = '#1e3a8a'; c.fillRect(rx, ry, 176, 48);
+                    c.fillStyle = '#bfdbfe'; c.font = '600 12px Prompt, sans-serif'; c.fillText(lbl, rx + 88, ry + 64);
+                });
+
+                // Walls
+                c.fillStyle = '#0f172a';
+                c.fillRect(sx - 16, sy - 16, sw + 32, 16);
+                c.fillRect(sx - 16, sy - 16, 16, sh + 32);
+                c.fillRect(sx + sw, sy - 16, 16, sh + 32);
+                c.fillRect(sx - 16, sy + sh, 736 - (sx - 16), 16);
+                c.fillRect(864, sy + sh, (sx + sw + 16) - 864, 16);
+            }
+
+            return off.toDataURL('image/jpeg', 0.9);
+        }
+
+        const BUILTIN_SCENES = {
+            town: {
+                title: 'เมืองด่านหน้า (Frontier Town)',
+                spawn: { x: 608, y: 992 },
+                npcs: [
+                    { id: 'npc-town-guard-1', name: 'ทหารยามประตูเมือง (ซ้าย)', faction: 'npc', charClass: 'City Guard', level: 2, baseAc: 16, ac: 16, hp: 22, maxHp: 22, mp: 0, maxMp: 0, size: 1, color: '#3b82f6', emoji: '🛡️', x: 544, y: 1056, skills: [{ name: 'หอกยาว (Spear)', mpCost: 0 }], inventory: [{ name: 'ใบผ่านทางเมืองด่านหน้า', qty: 5, healHp: 0, healMp: 0 }] },
+                    { id: 'npc-town-guard-2', name: 'ทหารยามประตูเมือง (ขวา)', faction: 'npc', charClass: 'City Guard', level: 2, baseAc: 16, ac: 16, hp: 22, maxHp: 22, mp: 0, maxMp: 0, size: 1, color: '#3b82f6', emoji: '🛡️', x: 736, y: 1056, skills: [], inventory: [] },
+                    { id: 'npc-town-merchant-1', name: 'พ่อค้าเสบียง (ลุงบาร์นส์)', faction: 'npc', charClass: 'Merchant', level: 1, baseAc: 11, ac: 11, hp: 12, maxHp: 12, mp: 0, maxMp: 0, size: 1, color: '#f59e0b', emoji: '💰', x: 672, y: 608, skills: [], inventory: [{ name: 'Potion of Healing', qty: 6, healHp: 10, healMp: 0 }] },
+                    { id: 'npc-town-merchant-2', name: 'แม่ค้าสมุนไพร (ป้ามีร่า)', faction: 'npc', charClass: 'Herbalist', level: 2, baseAc: 11, ac: 11, hp: 14, maxHp: 14, mp: 10, maxMp: 10, size: 1, color: '#10b981', emoji: '🌿', x: 672, y: 736, skills: [{ name: 'ปรุงยาแก้พิษ', mpCost: 2 }], inventory: [{ name: 'Mana Herb Tea', qty: 4, healHp: 0, healMp: 6 }] },
+                    { id: 'npc-town-guild-usher', name: 'เจ้าหน้าที่หน้ากิลด์', faction: 'npc', charClass: 'Guild Staff', level: 1, baseAc: 11, ac: 11, hp: 12, maxHp: 12, mp: 0, maxMp: 0, size: 1, color: '#a855f7', emoji: '📜', x: 416, y: 928, skills: [], inventory: [] }
+                ]
+            },
+            guild: {
+                title: 'กิลด์นักผจญภัย (1 ชั้น)',
+                spawn: { x: 800, y: 864 },
+                npcs: [
+                    { id: 'npc-guild-receptionist', name: 'คุณเอลิน่า (พนักงานต้อนรับกิลด์)', faction: 'npc', charClass: 'Guild Receptionist', level: 3, baseAc: 12, ac: 12, hp: 18, maxHp: 18, mp: 15, maxMp: 15, size: 1, color: '#ec4899', emoji: '👩', x: 800, y: 352, skills: [{ name: 'ลงทะเบียนนักผจญภัย', mpCost: 0 }, { name: 'จ่ายรางวัลเควส', mpCost: 0 }], inventory: [{ name: 'บัตรกิลด์นักผจญภัย', qty: 5, healHp: 0, healMp: 0 }] },
+                    { id: 'npc-guild-veteran', name: 'นักผจญภัยรุ่นพี่ (การ์เร็ต)', faction: 'npc', charClass: 'Ranger Lv.4', level: 4, baseAc: 15, ac: 15, hp: 34, maxHp: 34, mp: 10, maxMp: 10, size: 1, color: '#10b981', emoji: '🏹', x: 1120, y: 672, skills: [{ name: 'บอกเบาะแสมอนสเตอร์', mpCost: 0 }], inventory: [{ name: 'Potion of Healing', qty: 1, healHp: 10, healMp: 0 }] }
+                ]
+            },
+            shop: {
+                title: 'ร้านอาวุธและชุดเกราะ (1 ชั้น)',
+                spawn: { x: 800, y: 864 },
+                npcs: [
+                    { id: 'npc-shop-smith', name: 'ช่างตีเหล็กดอร์แกน (เจ้าของร้าน)', faction: 'npc', charClass: 'Blacksmith Merchant', level: 4, baseAc: 15, ac: 15, hp: 38, maxHp: 38, mp: 0, maxMp: 0, size: 1, color: '#f97316', emoji: '🧔', x: 800, y: 416, skills: [{ name: 'ค้อนช่างตีเหล็ก', mpCost: 0 }], inventory: [{ name: 'ดาบสั้น (1d6)', qty: 4, healHp: 0, healMp: 0 }, { name: 'โล่ไม้ (+2 AC)', qty: 3, healHp: 0, healMp: 0 }, { name: 'เกราะหนัง (AC 11+DEX)', qty: 3, healHp: 0, healMp: 0 }] }
+                ]
+            }
+        };
+
+        async function handlePresetSceneSelect(sceneKey) {
+            if (!sceneKey) return;
+            const keepPlayers = document.getElementById('keepPlayersOnSwitchCheck')?.checked ?? true;
+            const carriedPlayers = keepPlayers
+                ? state.tokens.filter(t => t.faction === 'player').map(t => ensureTokenRpgData(JSON.parse(JSON.stringify(t))))
+                : [];
+
+            if (sceneKey === 'dungeon') {
+                loadSampleDungeonMap();
+                if (carriedPlayers.length > 0) {
+                    carriedPlayers.forEach((p, idx) => {
+                        const sn = snapPositionToGrid(640 + idx * 64, 544, p.size || 1);
+                        p.x = sn.x; p.y = sn.y;
+                    });
+                    state.tokens = carriedPlayers;
+                }
+                renderAll();
+                saveToLocalStorage();
+                return;
+            }
+
+            // Try fetching custom committed JSON from ./scenes/{sceneKey}.json first (for GitHub Pages workflow)
+            try {
+                const res = await fetch(`./scenes/${sceneKey}.json`, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.grid) state.grid = { ...state.grid, ...data.grid };
+                    state.fog = data.fog ? { cells: data.fog.cells || {}, dmDarkOpacity: 1.0 } : { cells: {}, dmDarkOpacity: 1.0 };
+                    state.aoeTemplates = Array.isArray(data.aoeTemplates) ? data.aoeTemplates : [];
+                    const sceneTokens = Array.isArray(data.tokens) ? data.tokens.map(ensureTokenRpgData) : [];
+                    const nonPlayers = sceneTokens.filter(t => t.faction !== 'player');
+                    const spawn = BUILTIN_SCENES[sceneKey]?.spawn || { x: 800, y: 864 };
+                    carriedPlayers.forEach((p, idx) => {
+                        const sn = snapPositionToGrid(spawn.x + idx * 64, spawn.y, p.size || 1);
+                        p.x = sn.x; p.y = sn.y;
+                    });
+                    state.tokens = keepPlayers && carriedPlayers.length > 0
+                        ? [...nonPlayers, ...carriedPlayers]
+                        : sceneTokens;
+                    state.tokens.forEach(t => {
+                        if (t.avatar) { const im = new Image(); im.src = t.avatar; avatarCache[t.avatar] = im; }
+                    });
+                    syncGridUIInputs();
+                    if (data.mapImageSrc) applyMapImage(data.mapImageSrc);
+                    renderAll();
+                    saveToLocalStorage();
+                    showToast(`โหลดฉาก "${BUILTIN_SCENES[sceneKey]?.title || sceneKey}" จากโฟลเดอร์ฉากแล้ว`);
+                    return;
+                }
+            } catch (err) {
+                // Fallback to built-in generated scene
+            }
+
+            const preset = BUILTIN_SCENES[sceneKey];
+            if (!preset) return;
+
+            state.grid.size = 64;
+            state.grid.offsetX = 0;
+            state.grid.offsetY = 0;
+            state.fog = { cells: {}, dmDarkOpacity: 1.0 };
+            state.aoeTemplates = [];
+            syncGridUIInputs();
+
+            const presetNpcs = JSON.parse(JSON.stringify(preset.npcs)).map(ensureTokenRpgData);
+            carriedPlayers.forEach((p, idx) => {
+                const sn = snapPositionToGrid(preset.spawn.x + idx * 64, preset.spawn.y, p.size || 1);
+                p.x = sn.x;
+                p.y = sn.y;
+            });
+
+            state.tokens = [...presetNpcs, ...carriedPlayers];
+            state.selectedTokenId = carriedPlayers[0]?.id || presetNpcs[0]?.id || null;
+
+            const mapUrl = generatePresetMapDataUrl(sceneKey);
+            applyMapImage(mapUrl);
+            renderAll();
+            saveToLocalStorage();
+            showToast(`สลับไปยังฉาก "${preset.title}" พร้อมหมุด NPC แล้ว!`);
+        }
+
+        // ==================== SAVE / LOAD SCENE JSON ====================
+        function saveSceneJSON() {
+            const payload = {
+                version: '1.4',
+                savedAt: new Date().toISOString(),
+                grid: state.grid,
+                fog: state.fog || { cells: {}, dmDarkOpacity: 1.0 },
+                aoeTemplates: state.aoeTemplates || [],
+                tokens: state.tokens,
+                mapImageSrc: state.mapImageSrc
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dnd_scene_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('บันทึกไฟล์ฉาก .JSON เรียบร้อยแล้ว');
+        }
+
+        document.getElementById('sceneLoadInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.grid) state.grid = { ...state.grid, ...data.grid };
+                    state.fog = data.fog ? { cells: data.fog.cells || {}, dmDarkOpacity: 1.0 } : { cells: {}, dmDarkOpacity: 1.0 };
+                    state.aoeTemplates = Array.isArray(data.aoeTemplates) ? data.aoeTemplates : [];
+                    if (Array.isArray(data.tokens)) {
+                        state.tokens = data.tokens.map(ensureTokenRpgData);
+                        state.tokens.forEach(t => {
+                            if (t.avatar) {
+                                const im = new Image();
+                                im.src = t.avatar;
+                                avatarCache[t.avatar] = im;
+                            }
+                        });
+                    }
+                    syncGridUIInputs();
+                    if (data.mapImageSrc) {
+                        applyMapImage(data.mapImageSrc);
+                    } else {
+                        loadSampleDungeonMap();
+                    }
+                    renderAll();
+                    saveToLocalStorage();
+                    showToast('โหลดฉากและหมุดทั้งหมดสำเร็จ!');
+                } catch (err) {
+                    showToast('ไฟล์ฉากไม่ถูกต้อง');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function syncGridUIInputs() {
+            document.getElementById('gridVisibleCheck').checked = state.grid.visible;
+            document.getElementById('gridSnapCheck').checked = state.grid.snap;
+            document.getElementById('gridShowAcCheck').checked = state.grid.showAc;
+            document.getElementById('gridSizeRange').value = state.grid.size;
+            document.getElementById('gridOpacityRange').value = Math.round(state.grid.opacity * 100);
+            document.getElementById('gridOffsetXRange').value = state.grid.offsetX;
+            document.getElementById('gridOffsetYRange').value = state.grid.offsetY;
+            document.getElementById('gridSizeVal').textContent = state.grid.size + ' px';
+            document.getElementById('gridOpacityVal').textContent = Math.round(state.grid.opacity * 100) + '%';
+            document.getElementById('gridOffsetXVal').textContent = state.grid.offsetX + ' px';
+            document.getElementById('gridOffsetYVal').textContent = state.grid.offsetY + ' px';
+        }
+
+        function saveToLocalStorage() {
+            try {
+                const lightState = {
+                    grid: state.grid,
+                    fog: state.fog,
+                    aoeTemplates: state.aoeTemplates || [],
+                    tokens: state.tokens,
+                    selectedTokenId: state.selectedTokenId
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(lightState));
+            } catch (e) {
+                // Ignore storage quota errors
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return false;
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.tokens)) {
+                    state.grid = { ...state.grid, ...(parsed.grid || {}) };
+                    state.fog = parsed.fog ? { cells: parsed.fog.cells || {}, dmDarkOpacity: 1.0 } : { cells: {}, dmDarkOpacity: 1.0 };
+                    state.aoeTemplates = Array.isArray(parsed.aoeTemplates) ? parsed.aoeTemplates : [];
+                    state.tokens = parsed.tokens.map(ensureTokenRpgData);
+                    state.tokens.forEach(t => {
+                        if (t.avatar) {
+                            const im = new Image();
+                            im.src = t.avatar;
+                            avatarCache[t.avatar] = im;
+                        }
+                    });
+                    state.selectedTokenId = parsed.selectedTokenId || null;
+                    return true;
+                }
+            } catch (e) {
+                return false;
+            }
+            return false;
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ==================== INITIALIZATION ====================
+        window.addEventListener('resize', resizeCanvas);
+        window.onload = function () {
+            resizeCanvas();
+            const restored = loadFromLocalStorage();
+            syncGridUIInputs();
+            if (!restored || state.tokens.length === 0) {
+                state.tokens = [
+                    ensureTokenRpgData({
+                        id: 'tok-demo-1',
+                        name: 'Alaric',
+                        faction: 'player',
+                        charClass: 'Paladin',
+                        level: 3,
+                        baseAc: 18,
+                        hp: 32,
+                        maxHp: 32,
+                        mp: 15,
+                        maxMp: 15,
+                        size: 1,
+                        color: '#10b981',
+                        emoji: '🛡️',
+                        x: snapPositionToGrid(640, 520, 1).x,
+                        y: snapPositionToGrid(640, 520, 1).y,
+                        skills: [{ name: 'Divine Smite', mpCost: 5, desc: '+2d8 Radiant Damage' }],
+                        inventory: [{ name: 'Healing Potion', qty: 2, healHp: 10, healMp: 0 }]
+                    }),
+                    ensureTokenRpgData({
+                        id: 'tok-demo-2',
+                        name: 'Lyra',
+                        faction: 'player',
+                        charClass: 'Wizard',
+                        level: 3,
+                        baseAc: 13,
+                        hp: 20,
+                        maxHp: 20,
+                        mp: 30,
+                        maxMp: 30,
+                        size: 1,
+                        color: '#3b82f6',
+                        emoji: '🧙',
+                        x: snapPositionToGrid(576, 584, 1).x,
+                        y: snapPositionToGrid(576, 584, 1).y,
+                        skills: [{ name: 'Fireball', mpCost: 10, desc: '8d6 Fire (20 ft Radius)' }]
+                    }),
+                    ensureTokenRpgData({
+                        id: 'tok-demo-3',
+                        name: 'Shadow Ogre',
+                        faction: 'enemy',
+                        charClass: 'Giant',
+                        level: 4,
+                        baseAc: 14,
+                        hp: 59,
+                        maxHp: 59,
+                        mp: 0,
+                        maxMp: 0,
+                        size: 2,
+                        color: '#ef4444',
+                        emoji: '👹',
+                        x: snapPositionToGrid(928, 520, 2).x,
+                        y: snapPositionToGrid(928, 520, 2).y
+                    })
+                ];
+            }
+            fitMapToScreen();
+            renderAll();
+            renderLoop();
+        };
+    </script>
+</body>
+</html>
